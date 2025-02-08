@@ -127,7 +127,7 @@ def try_decrypt(args):
     
     return results
 
-def main():
+def run():
     print("Gromark Cipher Decoder")
     print("-" * 20)
     
@@ -186,4 +186,4 @@ def main():
         print("\nNo solutions found with given parameters.")
 
 if __name__ == "__main__":
-    main()
+    run()
