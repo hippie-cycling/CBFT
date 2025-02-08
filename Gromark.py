@@ -2,6 +2,7 @@ import itertools
 from tqdm import tqdm
 from concurrent.futures import ProcessPoolExecutor
 from concurrent.futures import as_completed
+from collections import Counter
 
 def create_keyed_alphabet(keyword):
     """Create a keyed alphabet from a keyword following Gromark cipher rules"""
@@ -86,6 +87,18 @@ def decrypt_gromark(ciphertext, mixed_alphabet, running_key):
     
     return ''.join(decrypted)
 
+def calculate_ioc(text):
+    """Calculate the Index of Coincidence (IoC) of a given text"""
+    text = text.upper()
+    text = [char for char in text if char in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ']
+    length = len(text)
+    if length < 2:
+        return 0.0
+    
+    freq = Counter(text)
+    ioc = sum(count * (count - 1) for count in freq.values()) / (length * (length - 1))
+    return ioc
+
 def try_decrypt(args):
     """Try decryption with a given primer batch"""
     ciphertext, mixed_alphabet, primers, known_plaintexts = args
@@ -95,6 +108,13 @@ def try_decrypt(args):
         try:
             running_key = generate_running_key(primer, len(ciphertext))
             decrypted = decrypt_gromark(ciphertext, mixed_alphabet, running_key)
+            
+            ioc = calculate_ioc(decrypted)
+            if 0.062 <= ioc <= 0.071:
+                print(f"\nIoC within range (0.063-0.070): {ioc}")
+                print(f"Primer: {primer}")
+                print(f"Running key: {running_key}")
+                print(f"Decrypted text: {decrypted}")
             
             if any(word.lower() in decrypted.lower() for word in known_plaintexts):
                 results.append({
