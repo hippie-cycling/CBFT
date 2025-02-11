@@ -2,6 +2,87 @@ import itertools
 from tqdm import tqdm
 from concurrent.futures import ProcessPoolExecutor
 from concurrent.futures import as_completed
+import os
+from typing import List, Tuple, Optional, Dict
+import multiprocessing
+import numpy as np
+
+def batch_primers(start: int = 10000, end: int = 99999, batch_size: int = 1000) -> List[List[int]]:
+    """Create batches of primers for more efficient processing"""
+    all_primers = list(range(start, end + 1))
+    return [all_primers[i:i + batch_size] for i in range(0, len(all_primers), batch_size)]
+
+def try_decrypt_batch(args: Tuple) -> List[Dict]:
+    """Process a batch of primers for a given keyword"""
+    keyword, primers, ciphertext, known_segments = args
+    results = []
+    
+    # Create alphabet once for the batch
+    mixed_alphabet = create_keyed_alphabet(keyword)
+    
+    # Pre-calculate segment indices and lengths for validation
+    segment_details = [(start, len(cipher_segment)) for start, cipher_segment, _ in known_segments]
+    
+    for primer in primers:
+        try:
+            primer_str = str(primer)
+            running_key = generate_running_key(primer_str, len(ciphertext))
+            
+            # Quick validation using numpy for known segments
+            valid = True
+            for start_idx, segment_len in segment_details:
+                segment_key = running_key[start_idx:start_idx + segment_len]
+                segment_cipher = ciphertext[start_idx:start_idx + segment_len]
+                decrypted_segment = decrypt_gromark(segment_cipher, mixed_alphabet, segment_key)
+                
+                if decrypted_segment.upper() != known_segments[0][2].upper():
+                    valid = False
+                    break
+            
+            if valid:
+                decrypted = decrypt_gromark(ciphertext, mixed_alphabet, running_key)
+                results.append({
+                    'keyword': keyword,
+                    'primer': primer_str,
+                    'running_key': running_key,
+                    'decrypted': decrypted
+                })
+                
+        except Exception:
+            continue
+            
+    return results
+
+def parallel_process_keywords(valid_keywords: List[str], ciphertext: str, known_segments: List[Tuple], 
+                            batch_size: int = 1000) -> List[Dict]:
+    """Process keywords in parallel with batched primers"""
+    all_results = []
+    num_processes = max(1, os.cpu_count() - 1)  # Leave one core free
+    primer_batches = batch_primers(batch_size=batch_size)
+    
+    total_batches = len(valid_keywords) * len(primer_batches)
+    
+    with ProcessPoolExecutor(max_workers=num_processes) as executor:
+        futures = []
+        
+        # Submit batches for each keyword
+        for keyword in valid_keywords:
+            for primer_batch in primer_batches:
+                args = (keyword, primer_batch, ciphertext, known_segments)
+                futures.append(executor.submit(try_decrypt_batch, args))
+        
+        # Process results as they complete
+        with tqdm(total=total_batches, desc="Processing batches") as pbar:
+            for future in as_completed(futures):
+                try:
+                    batch_results = future.result()
+                    all_results.extend(batch_results)
+                    pbar.update(1)
+                except Exception as e:
+                    print(f"Batch processing error: {e}")
+                    continue
+    
+    return all_results
 
 def create_keyed_alphabet(keyword):
     """Create a keyed alphabet from a keyword following Gromark cipher rules"""
@@ -155,34 +236,42 @@ def try_decrypt_with_primer(args):
 def main():
     print("Optimized Gromark Cipher Decoder")
     print("-" * 50)
-    
-    # User input for ciphertext
-    ciphertext = input("Enter the ciphertext: ").upper()
-    
-    # Define known segments based on ciphertext length
-    known_segments = [
-        (0, ciphertext[0:7], "ONLYTWO")
-    ]
-    
-    # Read words list
-    vowels = set('AEIOU')
-    try:
-        with open('words_alpha.txt', 'r') as f:
-            words_list = [
-                word.strip().upper()
-                for word in f
-                if 5 <= len(word.strip()) <= 12 
-                and not any(
-                    word[i].upper() in vowels and word[i+1].upper() in vowels
-                    for i in range(len(word.strip()) - 1)
-                )
-            ]
-    except FileNotFoundError:
-        print("Warning: words_alpha.txt not found. Using default word list.")
-        words_list = ["GRONSFELD", "KEYWORD", "CIPHER", "MATRIX"]
-    
+
+    # ***KEY CHANGE: Test Case Option***
+    use_test_case = input("Use test case? (Y/N): ")
+
+    if use_test_case == 'Y':
+        ciphertext = "OHRERPHTMNUQDPUYQTGQHABASQXPTHPYSIXJUFVKNGNDRRIOMAEJGZKHCBNDBIWLDGVWDDVLXCSCZS" # Test ciphertext
+        words_list = ["GRONSFELD", "TESTING", "GRONSFE"]  # Test word list
+        known_segments = [(0, ciphertext[0:7], "ONLYTWO")] # Test known segment
+        expected_keyword = "GRONSFELD"  # Expected keyword in test case
+        expected_primer = "32941" # Expected primer in test case
+        expected_plaintext = "onlytwothingsareinfinitetheuniverseandhumanstupidityandimnotsureabouttheformer" # Expected plaintext
+
+    elif use_test_case == 'N':
+        ciphertext = input("Enter the ciphertext: ").upper()
+        known_segments = [(63, ciphertext[63:74], "BERLINCLOCK")] # Original known segment
+        vowels = set('')
+        try:
+            with open('words_alpha.txt', 'r') as f:
+                words_list = [
+                    word.strip().upper()
+                    for word in f
+                    if 1 <= len(word.strip()) <= 15
+                    and not any(
+                        word[i].upper() in vowels and word[i + 1].upper() in vowels
+                        for i in range(len(word.strip()) - 1)
+                    )
+                ]
+        except FileNotFoundError:
+            print("Warning: words_alpha.txt not found. Using default word list.")
+    else:
+        print("Invalid input. Exiting...")
+        return
+
     # Filter keywords using constraints (Corrected)
     print("Filtering keywords based on constraints...")
+    print(f"Known Plaintext: {known_segments}")
     valid_keywords = []
     for keyword in tqdm(words_list):
         if validate_keyword(keyword, known_segments):
@@ -192,32 +281,32 @@ def main():
     print(valid_keywords)
     
     # Process valid keywords with parallel primer testing
-    results = []
-    total_combinations = len(valid_keywords) * 99999  # 5-digit primers from 10000-99999
+    # Replace the original parallel processing section with:
+    results = parallel_process_keywords(valid_keywords, ciphertext, known_segments)
     
-    print("\nTesting possible combinations...")
-    with ProcessPoolExecutor() as executor:
-        futures = []
-        
-        for keyword in valid_keywords:
-            for primer in range(10000, 100000):
-                args = (keyword, str(primer), ciphertext, known_segments)
-                futures.append(executor.submit(try_decrypt_with_primer, args))
-        
-        for future in tqdm(as_completed(futures), total=total_combinations):
-            result = future.result()
-            if result:
-                results.append(result)
-    
-    # Display results
+    # Display results (Corrected for Test Case)
     if results:
         print("\nPossible solutions found:")
         for result in results:
-            print("\n" + "-"*50)
+            print("\n" + "-" * 50)
             print(f"Keyword: {result['keyword']}")
             print(f"Primer: {result['primer']}")
             print(f"Running key: {result['running_key']}")
             print(f"Decrypted text: {result['decrypted']}")
+
+            # ***KEY ADDITION: Test Case Verification***
+            if use_test_case == 'Y':
+                if result['keyword'] == expected_keyword and result['primer'] == expected_primer and result['decrypted'] == expected_plaintext:
+                    print("\n***TEST CASE PASSED!***")
+                else:
+                    print("\n***TEST CASE FAILED!***")
+                    if result['keyword'] != expected_keyword:
+                        print(f"Expected Keyword: {expected_keyword}, Found: {result['keyword']}")
+                    if result['primer'] != expected_primer:
+                         print(f"Expected Primer: {expected_primer}, Found: {result['primer']}")
+                    if result['decrypted'] != expected_plaintext:
+                         print(f"Expected Plaintext: {expected_plaintext}, Found: {result['decrypted']}")
+
     else:
         print("\nNo solutions found with given parameters.")
 
