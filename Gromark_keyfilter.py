@@ -167,7 +167,7 @@ def main():
     # Read words list
     vowels = set('AEIOU')
     try:
-        with open('words_alpha_.txt', 'r') as f:
+        with open('words_alpha.txt', 'r') as f:
             words_list = [
                 word.strip().upper()
                 for word in f
