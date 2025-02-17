@@ -1,5 +1,6 @@
 import re
 from collections import Counter
+import sys
 
 def analyze_frequency(text):
     """Performs frequency analysis and compares to English."""
@@ -59,6 +60,12 @@ def process_file(filename):
                 print("-" * 50)
 
 
-# Example usage:
-filename = "test.txt"  # Replace with your file name
-process_file(filename)
+def main():
+    if len(sys.argv) > 1:  # Check if a filename argument was provided
+        filename = sys.argv[1]
+        process_file(filename)  # Call process_file with the filename
+    else:
+        print("Usage: python freq.py <filename>")  # Print usage instructions
+
+if __name__ == "__main__":
+    main()
