@@ -1,4 +1,4 @@
-import Gromark
+import Gromark_transposition
 import Gronsfeld
 
 def display_menu():
@@ -43,7 +43,7 @@ def main():
         elif choice == '1':
             print("\nYou selected: Gromark Cipher")
             print("Running brute force on Gromark Cipher...\n")
-            Gromark.run()
+            Gromark_transposition.run()
         elif choice == '2':
             print("\nYou selected: Gronsfeld Cipher")
             print("Running brute force on Gronsfeld Cipher...\n")

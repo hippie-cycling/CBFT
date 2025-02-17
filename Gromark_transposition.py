@@ -5,40 +5,41 @@ import os
 from typing import List, Tuple, Dict
 import multiprocessing
 import numpy as np
+import subprocess  # For running external scripts
+import re
 
-def create_keyed_alphabet(keyword: str) -> str:
-    # Remove duplicates while preserving order
+def create_keyed_alphabet(keyword: str, alphabet: str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ") -> str:
+    # Use the provided alphabet
     keyword = ''.join(dict.fromkeys(keyword.upper()))
-    remaining = ''.join(c for c in 'KRYPTOSABCDEFGHIJLMNQUVWXZ' if c not in keyword)
+    remaining = ''.join(c for c in alphabet if c not in keyword)
     base = keyword + remaining
-    
-    # Create and fill block
+
     cols = len(keyword)
     rows = (len(base) + cols - 1) // cols
     block = [['' for _ in range(cols)] for _ in range(rows)]
-    
+
     idx = 0
     for i in range(rows):
         for j in range(cols):
             if idx < len(base):
                 block[i][j] = base[idx]
                 idx += 1
-    
-    # Get column order based on keyword
+
     sorted_chars = sorted(keyword)
     order = []
     for char in keyword:
         order.append(sorted_chars.index(char) + 1)
         sorted_chars[sorted_chars.index(char)] = None
-    
+
     col_order = [p[0] for p in sorted(enumerate(order), key=lambda x: x[1])]
-    
+
     return ''.join(
-        block[row][col] 
-        for col in col_order 
-        for row in range(rows) 
+        block[row][col]
+        for col in col_order
+        for row in range(rows)
         if row < len(block) and block[row][col]
     )
+
 
 def batch_primers(start: int = 10000, end: int = 99999, batch_size: int = 1000) -> List[List[int]]:
     """Create optimized batches of primers"""
@@ -56,36 +57,33 @@ def generate_running_key(primer: str, length: int) -> str:
         
     return ''.join(map(str, result))
 
-def decrypt_gromark(ciphertext: str, mixed_alphabet: str, running_key: str) -> str:
-    """Optimized Gromark decryption"""
-    straight = 'KRYPTOSABCDEFGHIJLMNQUVWXZ'
+def decrypt_gromark(ciphertext: str, mixed_alphabet: str, running_key: str, alphabet: str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ") -> str:
     result = []
-    
+
     for i, char in enumerate(ciphertext):
         if char in mixed_alphabet and i < len(running_key):
             mixed_pos = mixed_alphabet.index(char)
-            straight_letter = straight[mixed_pos]
+            straight_letter = alphabet[mixed_pos] # Use provided alphabet
             shift = int(running_key[i])
-            orig_pos = (straight.index(straight_letter) - shift) % 26
-            result.append(straight[orig_pos].lower())
+            orig_pos = (alphabet.index(straight_letter) - shift) % len(alphabet) # Use len(alphabet) for modulo
+            result.append(alphabet[orig_pos].lower()) # Use provided alphabet
         else:
             result.append(char.lower())
-            
+
     return ''.join(result)
 
 def try_decrypt_batch(args: Tuple) -> List[Dict]:
-    """Process a batch of primers, checking if words can be formed."""
-    keyword, primers, ciphertext, required_words = args
+    keyword, primers, ciphertext, required_words, alphabet = args # Add alphabet
     results = []
-    mixed_alphabet = create_keyed_alphabet(keyword)
+    mixed_alphabet = create_keyed_alphabet(keyword, alphabet) # Pass alphabet
 
     for primer in primers:
         try:
             primer_str = str(primer)
             running_key = generate_running_key(primer_str, len(ciphertext))
-            decrypted = decrypt_gromark(ciphertext, mixed_alphabet, running_key)
+            decrypted = decrypt_gromark(ciphertext, mixed_alphabet, running_key, alphabet) # Pass alphabet
 
-            if all(can_form_word(word, decrypted) for word in required_words): # Use can_form_word
+            if all(can_form_word(word, decrypted) for word in required_words):
                 results.append({
                     'keyword': keyword,
                     'primer': primer_str,
@@ -98,30 +96,26 @@ def try_decrypt_batch(args: Tuple) -> List[Dict]:
 
     return results
 
-def validate_keyword(keyword: str, known_segments: List[Tuple]) -> bool:
-    """Quick keyword validation"""
+def validate_keyword(keyword: str, known_segments: List[Tuple], alphabet: str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ") -> bool: # Add alphabet
     try:
-        mixed_alphabet = create_keyed_alphabet(keyword)
-        straight = 'KRYPTOSABCDEFGHIJLMNQUVWXZ'
+        mixed_alphabet = create_keyed_alphabet(keyword, alphabet) # Pass alphabet
         
         for _, cipher_segment, plain_segment in known_segments:
             for c, p in zip(cipher_segment, plain_segment):
                 mixed_pos = mixed_alphabet.index(c)
-                straight_letter = straight[mixed_pos]
-                plain_pos = straight.index(p.upper())
-                straight_pos = straight.index(straight_letter)
-                
-                if (straight_pos - plain_pos) % 26 > 9:
+                straight_letter = alphabet[mixed_pos] # Use provided alphabet
+                plain_pos = alphabet.index(p.upper()) # Use provided alphabet
+                straight_pos = alphabet.index(straight_letter) # Use provided alphabet
+
+                if (straight_pos - plain_pos) % len(alphabet) > 9: # Use len(alphabet) for modulo
                     return False
-                    
+
         return True
-        
+
     except Exception:
         return False
 
-def parallel_process_keywords(valid_keywords: List[str], ciphertext: str,
-                              required_words: List[str], batch_size: int = 1000) -> List[Dict]: # Modified argument
-    """Optimized parallel processing for word presence check"""
+def parallel_process_keywords(valid_keywords: List[str], ciphertext: str, required_words: List[str], alphabet: str, batch_size: int = 1000) -> List[Dict]: # Add alphabet
     all_results = []
     num_processes = max(1, os.cpu_count() - 1)
     primer_batches = batch_primers(batch_size=batch_size)
@@ -130,7 +124,7 @@ def parallel_process_keywords(valid_keywords: List[str], ciphertext: str,
 
     with ProcessPoolExecutor(max_workers=num_processes) as executor:
         futures = [
-            executor.submit(try_decrypt_batch, (keyword, batch, ciphertext, required_words)) # Modified argument
+            executor.submit(try_decrypt_batch, (keyword, batch, ciphertext, required_words, alphabet)) # Add alphabet
             for keyword in valid_keywords
             for batch in primer_batches
         ]
@@ -174,12 +168,13 @@ def save_results_to_file(results: List[Dict], filename: str):
     except Exception as e:
         print(f"Error saving results to file: {e}")
 
-def main():
-    print("Optimized Gromark Cipher Decoder")
+
+def run():
+    print("\nOptimized Gromark Cipher Decoder")
     print("-" * 50)
-    
+
     use_test = input("Use test case? (Y/N): ").upper() == 'Y'
-    
+
     if use_test:
         ciphertext = "OHRERPHTMNUQDPUYQTGQHABASQXPTHPYSIXJUFVKNGNDRRIOMAEJGZKHCBNDBIWLDGVWDDVLXCSCZS"
         words_list = ["GRONSFELD", "TESTING", "GRONSFE"]
@@ -189,11 +184,18 @@ def main():
             'primer': "32941",
             'plaintext': "onlytwothingsareinfinitetheuniverseandhumanstupidityandimnotsureabouttheformer"
         }
-
+        print("\n----------------------")
+        print("Running a test case...")
+        print("----------------------")
     else:
         ciphertext = input("Enter ciphertext: ").upper()
-        required_words = ["BERLINCLOCK", "EASTNORTHEAST"] 
-    
+
+        required_words_input = input("Enter required words (comma-separated, press Enter for defaults: BERLINCLOCK, EASTNORTHEAST): ").upper()
+        if required_words_input:
+            required_words = [word.strip() for word in required_words_input.split(",")]
+        else:
+            required_words = ["BERLINCLOCK", "EASTNORTHEAST"]
+
         try:
             with open('words_alpha.txt', 'r') as f:
                 words_list = [word.strip().upper() for word in f if 1 <= len(word.strip()) <= 15]
@@ -201,62 +203,64 @@ def main():
             print("Error: words_alpha.txt not found")
             return
 
-    print("\nFiltering keywords based on constraints...")
-    valid_keywords = [
-        keyword for keyword in tqdm(words_list)
-        if validate_keyword(keyword, [(0, ciphertext[0:13], "ONLYTWOTHINGS") if use_test else (63, ciphertext[63:74], "BERLINCLOCK")]) # Modified for test case
-    ]
-    
-    print(f"\nFiltered from {len(words_list)} to {len(valid_keywords)} possible keywords")
-    
-    results = parallel_process_keywords(valid_keywords, ciphertext, required_words)
+    # --- KEYWORD ITERATION AND VALIDATION ---
 
-    if results:
-        test_passed = False  # Flag to track if at least one solution matches
+    alphabets_to_test = ["ABCDEFGHIJKLMNOPQRSTUVWXYZ", "KRYPTOSABCDEFGHIJLMNQUVWXZ"]
+    all_results = []
 
-        for result in results:
+    for alphabet in alphabets_to_test:
+        print(f"\nTesting with alphabet: {alphabet}")
+
+        print("\nFiltering keywords based on constraints...")
+        valid_keywords = [
+            keyword for keyword in tqdm(words_list)
+            if validate_keyword(keyword, [(0, ciphertext[0:13], "ONLYTWOTHINGS") if use_test else (63, ciphertext[63:74], "BERLINCLOCK")], alphabet)  # Pass alphabet to validate_keyword
+        ]
+
+        print(f"\nFiltered from {len(words_list)} to {len(valid_keywords)} possible keywords")
+
+        results = parallel_process_keywords(valid_keywords, ciphertext, required_words, alphabet)  # Pass alphabet to parallel_process_keywords
+        all_results.extend(results)
+
+    if all_results:
+        test_passed = False
+
+        for result in all_results:
             print("\n" + "-" * 50)
             print(f"Keyword: {result['keyword']}")
             print(f"Primer: {result['primer']}")
             print(f"Decrypted: {result['decrypted']}")
 
             if use_test:
-                matches = can_form_word("ONLYTWO", result['decrypted']) # Check if ONLYTWO can be formed
+                matches = can_form_word("ONLYTWO", result['decrypted'])
                 if matches:
                     test_passed = True
-                    #print(f"\n***TEST CASE PASSED (Found a valid solution)***")  # Show pass message for each valid solution
-                    #break #If you only want to see one pass you can uncomment this line
-                #else:
-                    #print(f"\n***TEST CASE FAILED (Solution does not generate ONLYTWO)***") #If you want to see all the fails you can uncomment this line
         if use_test:
             print(f"\n***TEST CASE {'PASSED' if test_passed else 'FAILED'}***")
-        
+
         save_filename = input("Enter filename to save results (or press Enter to skip): ")
+        
+        if save_filename != "":
+            save_filename = save_filename + ".txt"
+        
         if save_filename:
-            save_results_to_file(results, save_filename)
+            save_results_to_file(all_results, save_filename)  # Save all results
+
+        run_freq = input("Do you want to run frequency analysis on the results? (Y/N): ").upper()
+        
+        if run_freq == 'Y':
+            try:
+                subprocess.run(["python", "freq.py", save_filename], check=True)  # Pass filename as argument
+                print("Frequency analysis executed successfully.")
+            except subprocess.CalledProcessError as e:
+                print(f"Error executing freq.py: {e}")
+            except FileNotFoundError:
+                print("Error: freq.py not found in the same directory.")
+            except Exception as e: # Catch any other potential errors
+                print(f"An unexpected error occurred: {e}")
+
     else:
         print("\nNo solutions found.")
 
 if __name__ == "__main__":
-    main()
-
-
-# OBKRUOXOGHULBS
-# OLIFBBWFLRVQQP
-# RNGKSSOTWTQSJQ
-# SSEKZZWATJKLUD
-# IAWINFBNYPVTTM
-# ZFPKWGDKZXTJCD
-# IGKUHUAUEKCAR
-
-# 0,3,6,2,5,1,4
-
-# OBKRUOXOGHULBSZFPKWGDKZXTJCDSSEKZZWATJKLUDOLIFBBWFLRVQQPIGKUHUAUEKCAXRIAWINFBNYPVTTMRNGKSSOTWTQSJQ
-
-# OBKRUOXOGHULBSOLIFBB W FLRVQQPRNGKSSOT W TQSJQSSEKZZ W ATJKLUDIA W INFBNYPVTTMZFPK W GDKZXTJCDIGKUHUAUEKCAR
-# OBKRUOXOGHULBSOLIFBBFLRVQQPRNGKSSOTTQSJQSSEKZZATJKLUDIAINFBNYPVTTMZFPKGDKZXTJCDIGKUHUAUEKCAR
-# OBKRUOXOGHULBSOLIFBBTQSJQSSEKZZINFBNYPVTTMZFPKFLRVQQPRNGKSSOTATJKLUDIAGDKZXTJCDIGKUHUAUEKCAR
-
-#OBUOXOGHULBSOLIFBBWFLRVQQPRNGKSWTQSJQSSEKZZWATJKLUDIAWINFBNVTTMZFPKWGDKZXTJCDIGKUHUAUEKCAR
-
-#SPQDMDQBQJUTCRLQSLTJAUVQKVTCHRTJPXKGLWTYZEOFTANKUXWOWBDAOBSZFGUUBSZNWHRFKKIKUKIGEWPKBLNSAFGOORSIZI
+    run()
