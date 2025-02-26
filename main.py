@@ -1,5 +1,6 @@
 import Gromark_transposition
-import Gronsfeld
+#import Gronsfeld
+import vigenere
 
 RED = '\033[38;5;88m'
 YELLOW = '\033[38;5;3m'
@@ -10,9 +11,10 @@ def display_menu():
     print(f"\n" + f"{GREY}={RESET}"*40)
     print("Select a cipher to run:")
     print(f"{YELLOW}0.{RESET} Help")
-    print(f"{YELLOW}1.{RESET} Gromark Cipher")
-    print(f"{YELLOW}2.{RESET} Gronsfeld Cipher")
-    print(f"{YELLOW}3.{RESET} Exit")
+    print(f"{YELLOW}1.{RESET} Vigenere Cipher")
+    print(f"{YELLOW}2.{RESET} Gromark Cipher")
+    print(f"{YELLOW}3.{RESET} Gronsfeld Cipher")
+    print(f"{YELLOW}4.{RESET} Exit")
     print(f"{GREY}={RESET}"*40)
 
 def main():
@@ -48,12 +50,16 @@ def main():
         elif choice == '1':
             print("\nYou selected: Gromark Cipher")
             print("Running brute force on Gromark Cipher...")
-            Gromark_transposition.run()
+            vigenere.run()
         elif choice == '2':
+            print("\nYou selected: Gromark Cipher")
+            print("Running brute force on Gromark Cipher...")
+            Gromark_transposition.run()
+        elif choice == '3':
             print("\nYou selected: Gronsfeld Cipher")
             print("Running brute force on Gronsfeld Cipher...")
             Gronsfeld.run()
-        elif choice == '3':
+        elif choice == '4':
             print(f"{RED}Exiting now...{RESET}")
             break
         else:
