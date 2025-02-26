@@ -223,10 +223,8 @@ plaintext words and the keys that generate an IoC close to English
 (0.06 <= ioc <= 0.07) for further analysis.
 
 {EFFECTS['underline']}Tips & Warnings:{EFFECTS['reset']}
-• Don't go crazy with the key size as it might literally take forever to compute.
-• Recommended key size is 1-9 digits.
-• Note the primer/s and extrapolate for best results.
-• For large ciphertexts, consider limiting your search parameters.
+• You don´t know any plaintext word? try common words such as "FROM, "THE", "LIKE", "THAT", etc.
+Note that a large quantity of outputs will be generated. So choose wisely.
 """
     clear_screen()
     print(help_text)
