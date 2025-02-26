@@ -8,6 +8,11 @@ import numpy as np
 import subprocess  # For running external scripts
 import re
 
+RED = '\033[38;5;88m'
+YELLOW = '\033[38;5;3m'
+GREY = '\033[38;5;238m'
+RESET = '\033[0m'
+
 def create_keyed_alphabet(keyword: str, alphabet: str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ") -> str:
     # Use the provided alphabet
     keyword = ''.join(dict.fromkeys(keyword.upper()))
@@ -170,10 +175,21 @@ def save_results_to_file(results: List[Dict], filename: str):
 
 
 def run():
-    print("\nOptimized Gromark Cipher Decoder")
-    print("-" * 50)
+    print(f"""{GREY}
+  ▄████  ▄▄▄▄     █████▒
+ ██▒ ▀█▒▓█████▄ ▓██   ▒ 
+▒██░▄▄▄░▒██▒ ▄██▒████ ░ 
+░▓█  ██▓▒██░█▀  ░▓█▒  ░ 
+░▒▓███▀▒░▓█  ▀█▓░▒█░    
+ ░▒   ▒ ░▒▓███▀▒ ▒ ░    
+  ░   ░ ▒░▒   ░  ░      
+░ ░   ░  ░    ░  ░ ░    
+      ░  ░              
+              ░         {RESET}""")
+    print(f"\n{RED}G{RESET}romark {RED}B{RESET}rute {RED}F{RESET}rocer - Tailored for K4")
+    print(f"{GREY}-{RESET}" * 50)
 
-    use_test = input("Use test case? (Y/N): ").upper() == 'Y'
+    use_test = input(f"Use test case? ({YELLOW}Y/N{RESET}): ").upper() == 'Y'
 
     if use_test:
         ciphertext = "OHRERPHTMNUQDPUYQTGQHABASQXPTHPYSIXJUFVKNGNDRRIOMAEJGZKHCBNDBIWLDGVWDDVLXCSCZS"
@@ -184,13 +200,13 @@ def run():
             'primer': "32941",
             'plaintext': "onlytwothingsareinfinitetheuniverseandhumanstupidityandimnotsureabouttheformer"
         }
-        print("\n----------------------")
-        print("Running a test case...")
-        print("----------------------")
+        print(f"\n{GREY}----------------------")
+        print(f"Running a test case...")
+        print(f"----------------------{RESET}")
     else:
         ciphertext = input("Enter ciphertext: ").upper()
 
-        required_words_input = input("Enter required words (comma-separated, press Enter for defaults: BERLINCLOCK, EASTNORTHEAST): ").upper()
+        required_words_input = input(f"Enter known plaintext words (comma-separated, press Enter for defaults: {RED}BERLINCLOCK, EASTNORTHEAST{RESET}): ").upper()
         if required_words_input:
             required_words = [word.strip() for word in required_words_input.split(",")]
         else:
@@ -200,7 +216,7 @@ def run():
             with open('words_alpha.txt', 'r') as f:
                 words_list = [word.strip().upper() for word in f if 1 <= len(word.strip()) <= 15]
         except FileNotFoundError:
-            print("Error: words_alpha.txt not found")
+            print(f"{RED}Error: words_alpha.txt not found{RESET}")
             return
 
     # --- KEYWORD ITERATION AND VALIDATION ---
@@ -209,15 +225,15 @@ def run():
     all_results = []
 
     for alphabet in alphabets_to_test:
-        print(f"\nTesting with alphabet: {alphabet}")
+        print(f"\nTesting with alphabet: {RED}{alphabet}{RESET}")
 
-        print("\nFiltering keywords based on constraints...")
+        print(f"\n{YELLOW}Filtering keywords based on constraints...{RESET}")
         valid_keywords = [
             keyword for keyword in tqdm(words_list)
             if validate_keyword(keyword, [(0, ciphertext[0:13], "ONLYTWOTHINGS") if use_test else (63, ciphertext[63:74], "BERLINCLOCK")], alphabet)  # Pass alphabet to validate_keyword
         ]
 
-        print(f"\nFiltered from {len(words_list)} to {len(valid_keywords)} possible keywords")
+        print(f"\nFiltered from {YELLOW}{len(words_list)}{RESET} to {RED}{len(valid_keywords)}{RESET} possible keywords")
 
         results = parallel_process_keywords(valid_keywords, ciphertext, required_words, alphabet)  # Pass alphabet to parallel_process_keywords
         all_results.extend(results)
@@ -236,7 +252,7 @@ def run():
                 if matches:
                     test_passed = True
         if use_test:
-            print(f"\n***TEST CASE {'PASSED' if test_passed else 'FAILED'}***")
+            print(f"\n{YELLOW}TEST CASE {'PASSED' if test_passed else 'FAILED'}{RESET}")
 
         save_filename = input("Enter filename to save results (or press Enter to skip): ")
         
@@ -246,21 +262,21 @@ def run():
         if save_filename:
             save_results_to_file(all_results, save_filename)  # Save all results
 
-        run_freq = input("Do you want to run frequency analysis on the results? (Y/N): ").upper()
+        run_freq = input(f"Do you want to run frequency analysis on the results? ({YELLOW}Y/N{RESET}): ").upper()
         
         if run_freq == 'Y':
             try:
                 subprocess.run(["python", "freq.py", save_filename], check=True)  # Pass filename as argument
-                print("Frequency analysis executed successfully.")
+                print(f"{YELLOW}Frequency analysis executed successfully.{RESET}")
             except subprocess.CalledProcessError as e:
-                print(f"Error executing freq.py: {e}")
+                print(f"{RED}Error executing freq.py:{RESET} {e}")
             except FileNotFoundError:
-                print("Error: freq.py not found in the same directory.")
+                print(f"{RED}Error: freq.py not found in the same directory.{RESET}")
             except Exception as e: # Catch any other potential errors
-                print(f"An unexpected error occurred: {e}")
+                print(f"{RED}An unexpected error occurred:{RESET} {e}")
 
     else:
-        print("\nNo solutions found.")
+        print(f"\n{RED}NO SOLUTIONS FOUND{RESET}")
 
 if __name__ == "__main__":
     run()
