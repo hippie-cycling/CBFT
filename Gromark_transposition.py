@@ -134,7 +134,7 @@ def parallel_process_keywords(valid_keywords: List[str], ciphertext: str, requir
             for batch in primer_batches
         ]
 
-        with tqdm(total=total_batches, desc="Processing batches") as pbar:
+        with tqdm(total=total_batches, desc="Processing batches",  colour="yellow") as pbar:
             for future in as_completed(futures):
                 try:
                     batch_results = future.result()
@@ -175,18 +175,14 @@ def save_results_to_file(results: List[Dict], filename: str):
 
 
 def run():
-    print(f"""{GREY}
-  ▄████  ▄▄▄▄     █████▒
- ██▒ ▀█▒▓█████▄ ▓██   ▒ 
-▒██░▄▄▄░▒██▒ ▄██▒████ ░ 
-░▓█  ██▓▒██░█▀  ░▓█▒  ░ 
-░▒▓███▀▒░▓█  ▀█▓░▒█░    
- ░▒   ▒ ░▒▓███▀▒ ▒ ░    
-  ░   ░ ▒░▒   ░  ░      
-░ ░   ░  ░    ░  ░ ░    
-      ░  ░              
-              ░         {RESET}""")
-    print(f"\n{RED}G{RESET}romark {RED}B{RESET}rute {RED}F{RESET}rocer - Tailored for K4")
+    print(f"""{GREY} 
+██████  ██████  ███████ 
+██       ██   ██ ██      
+██   ███ ██████  █████   
+██    ██ ██   ██ ██      
+ ██████  ██████  ██      
+                        {RESET}""")
+    print(f"{RED}G{RESET}romark {RED}B{RESET}rute {RED}F{RESET}rocer")
     print(f"{GREY}-{RESET}" * 50)
 
     use_test = input(f"Use test case? ({YELLOW}Y/N{RESET}): ").upper() == 'Y'
@@ -242,10 +238,10 @@ def run():
         test_passed = False
 
         for result in all_results:
-            print("\n" + "-" * 50)
-            print(f"Keyword: {result['keyword']}")
-            print(f"Primer: {result['primer']}")
-            print(f"Decrypted: {result['decrypted']}")
+            print(f"{GREY}-{RESET}" * 50)
+            print(f"Keyword: {YELLOW}{result['keyword']}{RESET}")
+            print(f"Primer: {YELLOW}{result['primer']}{RESET}")
+            print(f"Decrypted: {RED}{result['decrypted']}{RESET}")
 
             if use_test:
                 matches = can_form_word("ONLYTWO", result['decrypted'])
