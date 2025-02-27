@@ -1,13 +1,6 @@
-
-  ██████╗██████╗ ███████╗████████╗
- ██╔════╝██╔══██╗██╔════╝╚══██╔══╝
- ██║     ██████╔╝█████╗     ██║   
- ██║     ██╔══██╗██╔══╝     ██║   
- ╚██████╗██████╔╝██║        ██║   
-  ╚═════╝╚═════╝ ╚═╝        ╚═╝   
 # CBFT [Cipher Brute Force Tool]
 
-A comprehensive toolkit designed for cryptanalysis and cipher breaking.
+A comprehensive console-based toolkit designed for cryptanalysis and cipher breaking.
 This toolkit provides methods for brute forcing various classical ciphers including Vigenere, Gromark, and Gronsfeld.
 More ciphers to be implemented, **WIP**
 
