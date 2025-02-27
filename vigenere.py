@@ -44,6 +44,29 @@ def decrypt_vigenere(ciphertext: str, key: str, alphabet_str: str) -> str:
     
     return ''.join(plaintext)
 
+def calculate_ioc(text: str) -> float:
+    """
+    Calculate Index of Coincidence for the given text.
+    The IoC measures the probability that any two randomly selected letters in the text are the same.
+    English text typically has an IoC around 0.067.
+    """
+    # Filter only alphabet characters
+    text = ''.join(c for c in text.upper() if c.isalpha())
+    
+    if len(text) <= 1:
+        return 0.0
+    
+    # Count occurrences of each letter
+    letter_counts = Counter(text)
+    
+    # Calculate IoC: sum(ni * (ni-1)) / (N * (N-1))
+    # where ni is the count of each letter and N is the total length
+    n = len(text)
+    numerator = sum(count * (count - 1) for count in letter_counts.values())
+    denominator = n * (n - 1)
+    
+    return numerator / denominator if denominator > 0 else 0.0
+
 def load_dictionary(file_path: str, alphabet_str: str, min_length: int = 3, max_length: int = 15) -> List[str]:
     """Load dictionary words that only contain characters from the given alphabet."""
     alphabet, _ = get_alphabet(alphabet_str)
@@ -86,48 +109,78 @@ def highlight_match(text: str, phrases: List[str]) -> str:
             
     return result
 
-def process_batch(args: Tuple) -> List[Dict]:
+def process_batch(args: Tuple) -> Tuple[List[Dict], List[Dict]]:
     """Process a batch of dictionary words as potential keys."""
-    word_batch, ciphertext, target_phrases, alphabet_str = args
-    results = []
+    word_batch, ciphertext, target_phrases, alphabet_str, min_ioc, max_ioc = args
+    phrase_matches = []
+    ioc_matches = []
     
     for word in word_batch:
         plaintext = decrypt_vigenere(ciphertext, word, alphabet_str)
         
-        # Check if plaintext contains all target phrases
-        if contains_all_phrases(plaintext, target_phrases):
-            results.append({
+        # Calculate IoC for all solutions
+        ioc = calculate_ioc(plaintext)
+        
+        # Check if IoC is within the English-like range
+        if min_ioc <= ioc <= max_ioc:
+            ioc_matches.append({
                 'key': word,
                 'plaintext': plaintext,
-                'matched_phrases': target_phrases
+                'ioc': ioc
+            })
+        
+        # Check if plaintext contains all target phrases
+        if contains_all_phrases(plaintext, target_phrases):
+            phrase_matches.append({
+                'key': word,
+                'plaintext': plaintext,
+                'matched_phrases': target_phrases,
+                'ioc': ioc
             })
                 
-    return results
+    return phrase_matches, ioc_matches
 
 def batch_words(words: List[str], batch_size: int = 500) -> List[List[str]]:
     """Split word list into batches for parallel processing."""
     return [words[i:i + batch_size] for i in range(0, len(words), batch_size)]
 
 def crack_vigenere(ciphertext: str, alphabet_str: str, target_phrases: List[str], dictionary_path: str, 
-                  specific_keys: List[str] = None) -> List[Dict]:
+                   specific_keys: List[str] = None, min_ioc: float = 0.065, max_ioc: float = 0.07) -> Tuple[List[Dict], List[Dict]]:
     """
-    Attempt to crack Vigenere cipher by trying dictionary words as keys.
-    Returns list of possible solutions that contain target phrases.
+    Attempt to crack Vigenere cipher using two approaches:
+    1. Target phrase matching
+    2. English-like IoC values
+    
+    Returns two lists of possible solutions.
     """
-    all_results = []
+    phrase_results = []
+    ioc_results = []
     
     # First try specific keys if provided
     if specific_keys:
         print(f"\n{YELLOW}Trying specific keys...{RESET}")
         for key in specific_keys:
             plaintext = try_key_directly(key, ciphertext, alphabet_str)
-            if contains_all_phrases(plaintext, target_phrases):
-                all_results.append({
+            ioc = calculate_ioc(plaintext)
+            
+            # Always add to ioc_results if within range
+            if min_ioc <= ioc <= max_ioc:
+                ioc_results.append({
                     'key': key,
                     'plaintext': plaintext,
-                    'matched_phrases': target_phrases
+                    'ioc': ioc
                 })
-                print(f"Match found with key: {RED}{key}{RESET}")
+                print(f"IoC match found with key: {RED}{key}{RESET} (IoC: {ioc:.6f})")
+            
+            # Add to phrase_results if phrases match
+            if contains_all_phrases(plaintext, target_phrases):
+                phrase_results.append({
+                    'key': key,
+                    'plaintext': plaintext,
+                    'matched_phrases': target_phrases,
+                    'ioc': ioc
+                })
+                print(f"Phrase match found with key: {RED}{key}{RESET}")
     
     # Load dictionary words for brute force
     print(f"\n{YELLOW}Loading dictionary...{RESET}")
@@ -146,15 +199,16 @@ def crack_vigenere(ciphertext: str, alphabet_str: str, target_phrases: List[str]
         
         with ProcessPoolExecutor(max_workers=num_processes) as executor:
             futures = [
-                executor.submit(process_batch, (batch, ciphertext, target_phrases, alphabet_str))
+                executor.submit(process_batch, (batch, ciphertext, target_phrases, alphabet_str, min_ioc, max_ioc))
                 for batch in word_batches
             ]
             
             with tqdm(total=total_batches, desc="Processing batches", colour="yellow") as pbar:
                 for future in as_completed(futures):
                     try:
-                        batch_results = future.result()
-                        all_results.extend(batch_results)
+                        batch_phrase_results, batch_ioc_results = future.result()
+                        phrase_results.extend(batch_phrase_results)
+                        ioc_results.extend(batch_ioc_results)
                         pbar.update(1)
                     except Exception as e:
                         print(f"{RED}Batch processing error: {e}{RESET}")
@@ -163,17 +217,24 @@ def crack_vigenere(ciphertext: str, alphabet_str: str, target_phrases: List[str]
         end_time = time.time()
         print(f"\n{YELLOW}Cracking complete in {end_time - start_time:.2f} seconds{RESET}")
     
-    print(f"Found {RED}{len(all_results)}{RESET} possible solutions")
-    return all_results
+    # Sort IoC results by closeness to ideal English IoC (0.0667)
+    ioc_results.sort(key=lambda x: abs(0.0667 - x['ioc']))
+    
+    print(f"Found {RED}{len(phrase_results)}{RESET} phrase-matching solutions")
+    print(f"Found {RED}{len(ioc_results)}{RESET} English-like IoC solutions")
+    
+    return phrase_results, ioc_results
 
-def save_results_to_file(results: List[Dict], filename: str):
+def save_results_to_file(results: List[Dict], filename: str, include_phrases: bool = True):
     """Save results to a text file."""
     try:
         with open(filename, 'w', encoding='utf-8') as f:
             for result in results:
                 f.write("-" * 50 + "\n")
                 f.write(f"Key: {result['key']}\n")
-                f.write(f"Matched phrases: {', '.join(result['matched_phrases'])}\n")
+                f.write(f"IoC: {result['ioc']:.6f}\n")
+                if include_phrases and 'matched_phrases' in result:
+                    f.write(f"Matched phrases: {', '.join(result['matched_phrases'])}\n")
                 f.write(f"Plaintext: {result['plaintext']}\n")
                 f.write("-" * 50 + "\n\n")
         
@@ -279,6 +340,11 @@ def analyze_frequency(text):
     print(f"Top Trigrams: ", end="")
     print(", ".join([f"{RED}{t}{RESET}({c})" for t, c in top_trigrams]))
     
+    # Add Index of Coincidence calculation
+    ioc = calculate_ioc(text)
+    print(f"\n{YELLOW}Index of Coincidence: {RED}{ioc:.6f}{RESET}")
+    print(f"Typical English text IoC: {YELLOW}0.0667{RESET}")
+    
     print(f"\n{GREY}Analysis complete.{RESET}")
 
 def run():
@@ -300,12 +366,15 @@ def run():
         target_phrases = ["BETWEEN", "SUBTLE"]
         expected_key = "PALIMPSEST"
         specific_keys = ["PALIMPSEST"]  # Try this key directly
+        min_ioc = 0.065
+        max_ioc = 0.07
         
         print(f"\n{GREY}----------------------")
         print(f"Running a test case...")
         print(f"Ciphertext: {ciphertext}")
         print(f"Target phrases: {', '.join(target_phrases)}")
         print(f"Expected key: {expected_key}")
+        print(f"IoC range: {min_ioc}-{max_ioc}")
         print(f"----------------------{RESET}")
     else:
         ciphertext = input("Enter ciphertext: ").upper()
@@ -313,46 +382,113 @@ def run():
         alphabet_input = input(f"Enter alphabet (press Enter for default {RED}ABCDEFGHIJKLMNOPQRSTUVWXYZ{RESET}): ").upper()
         alphabet_str = alphabet_input if alphabet_input else "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
         
-        target_phrases_input = input(f"Enter known plaintext words/phrases (comma-separated): ").upper()
-        target_phrases = [phrase.strip() for phrase in target_phrases_input.split(",")]
+        target_phrases_input = input(f"Enter known plaintext words/phrases (comma-separated, or press Enter for none): ").upper()
+        target_phrases = [phrase.strip() for phrase in target_phrases_input.split(",")] if target_phrases_input else []
         
         specific_keys_input = input(f"Enter specific keys to try first (comma-separated, or press Enter to skip): ").upper()
         specific_keys = [key.strip() for key in specific_keys_input.split(",")] if specific_keys_input else []
+        
+        # Ask for IoC range
+        use_default_ioc = input(f"Use default English IoC range ({YELLOW}0.065-0.07{RESET})? ({YELLOW}Y/N{RESET}): ").upper() == 'Y'
+        if use_default_ioc:
+            min_ioc = 0.065
+            max_ioc = 0.07
+        else:
+            try:
+                min_ioc = float(input(f"Enter minimum IoC value: "))
+                max_ioc = float(input(f"Enter maximum IoC value: "))
+            except ValueError:
+                print(f"{RED}Invalid input, using default range.{RESET}")
+                min_ioc = 0.065
+                max_ioc = 0.07
     
     dictionary_path = "words_alpha.txt"
     
-    # Run the cracking process
-    results = crack_vigenere(ciphertext, alphabet_str, target_phrases, dictionary_path, specific_keys)
+    # Run the cracking process with both methods
+    phrase_results, ioc_results = crack_vigenere(
+        ciphertext, 
+        alphabet_str, 
+        target_phrases, 
+        dictionary_path, 
+        specific_keys,
+        min_ioc,
+        max_ioc
+    )
     
-    # Display results
-    if results:
-        for i, result in enumerate(results):
-            print(f"{GREY}-{RESET}" * 50)
+    # Display phrase-matching results if any
+    if phrase_results and target_phrases:
+        print(f"\n{YELLOW}PHRASE-MATCHING RESULTS{RESET}")
+        print(f"{GREY}-{RESET}" * 50)
+        
+        for i, result in enumerate(phrase_results[:10]):  # Show top 10
             print(f"Solution #{i+1}:")
             print(f"Key: {YELLOW}{result['key']}{RESET}")
+            print(f"IoC: {YELLOW}{result['ioc']:.6f}{RESET}")
             print(f"Matched phrases: {YELLOW}{', '.join(result['matched_phrases'])}{RESET}")
             
             highlighted = highlight_match(result['plaintext'], result['matched_phrases'])
             print(f"Plaintext: {highlighted}")
+            print(f"{GREY}-{RESET}" * 50)
         
         # Check if test case was successful
         if use_test:
-            test_passed = any(r['key'] == expected_key for r in results)
-            print(f"\n{YELLOW}TEST CASE {'PASSED' if test_passed else 'FAILED'}{RESET}")
+            test_passed = any(r['key'] == expected_key for r in phrase_results)
+            print(f"\n{YELLOW}PHRASE-MATCH TEST CASE {'PASSED' if test_passed else 'FAILED'}{RESET}")
         
-        # Option to save results
-        save_filename = input("Enter filename to save results (or press Enter to skip): ")
-        if save_filename:
-            save_filename = save_filename + ".txt" if not save_filename.endswith(".txt") else save_filename
-            save_results_to_file(results, save_filename)
+        # Option to save phrase results
+        if len(phrase_results) > 0:
+            save_phrase = input(f"\nSave phrase-matching results to file? ({YELLOW}Y/N{RESET}): ").upper() == 'Y'
+            if save_phrase:
+                phrase_filename = input("Enter filename for phrase results: ")
+                phrase_filename = phrase_filename + "-phrases.txt" if not phrase_filename.endswith(".txt") else phrase_filename.replace(".txt", "-phrases.txt")
+                save_results_to_file(phrase_results, phrase_filename)
+            
+            # Option to run frequency analysis
+            analyze_phrase = input(f"Run frequency analysis on best phrase match? ({YELLOW}Y/N{RESET}): ").upper() == 'Y'
+            if analyze_phrase:
+                analyze_frequency(phrase_results[0]['plaintext'])
+    
+    # Display IoC-based results
+    if ioc_results:
+        print(f"\n{YELLOW}ENGLISH-LIKE IoC RESULTS (IoC range: {min_ioc}-{max_ioc}){RESET}")
+        print(f"{GREY}-{RESET}" * 50)
         
-        # Option to run frequency analysis
-        if results:
-            analyze_option = input(f"Run frequency analysis on best match? ({YELLOW}Y/N{RESET}): ").upper()
-            if analyze_option == 'Y':
-                analyze_frequency(results[0]['plaintext'])
-    else:
-        print(f"\n{RED}NO SOLUTIONS FOUND{RESET}")
+        for i, result in enumerate(ioc_results[:10]):  # Show top 10
+            print(f"IoC Solution #{i+1}:")
+            print(f"Key: {YELLOW}{result['key']}{RESET}")
+            print(f"IoC: {YELLOW}{result['ioc']:.6f}{RESET}")
+            
+            # Highlight any matched phrases if they exist
+            if target_phrases and contains_all_phrases(result['plaintext'], target_phrases):
+                print(f"Matched phrases: {YELLOW}{', '.join(target_phrases)}{RESET}")
+                highlighted = highlight_match(result['plaintext'], target_phrases)
+                print(f"Plaintext: {highlighted}")
+            else:
+                print(f"Plaintext: {result['plaintext']}")
+            
+            print(f"{GREY}-{RESET}" * 50)
+        
+        # Check if test case was successful
+        if use_test:
+            test_passed = any(r['key'] == expected_key for r in ioc_results)
+            print(f"\n{YELLOW}IoC-MATCH TEST CASE {'PASSED' if test_passed else 'FAILED'}{RESET}")
+        
+        # Option to save IoC results
+        if len(ioc_results) > 0:
+            save_ioc = input(f"\nSave IoC-based results to file? ({YELLOW}Y/N{RESET}): ").upper() == 'Y'
+            if save_ioc:
+                ioc_filename = input("Enter filename for IoC results: ")
+                ioc_filename = ioc_filename + "-ioc.txt" if not ioc_filename.endswith(".txt") else ioc_filename.replace(".txt", "-ioc.txt")
+                save_results_to_file(ioc_results, ioc_filename, include_phrases=False)
+            
+            # Option to run frequency analysis
+            analyze_ioc = input(f"Run frequency analysis on best IoC match? ({YELLOW}Y/N{RESET}): ").upper() == 'Y'
+            if analyze_ioc:
+                analyze_frequency(ioc_results[0]['plaintext'])
+    
+    # If no results found with either method
+    if not phrase_results and not ioc_results:
+        print(f"\n{RED}NO SOLUTIONS FOUND WITH EITHER METHOD{RESET}")
         
     print(f"\n{GREY}Program complete.{RESET}")
 
