@@ -6,8 +6,9 @@ More ciphers to be implemented, **WIP**
 
 - Customizable alphabet support.
 - Known Plaintext list-based attack.
-- IoC based analysis (English 0.065-0.07).
-- Frequency analysis of potential solutions for transposition detection.
+- IoC based analysis.
+- Frequency based analysis.
+- XOR decriptor.
 
 To run the program, download the repository and launch main.py.
 
