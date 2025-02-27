@@ -31,8 +31,8 @@ except ImportError:
 
 # Enhanced colors and styling
 COLORS = {
-    'red': '\033[38;5;196m',
-    'bright_red': '\033[38;5;9m',
+    'red': '\033[38;5;88m',
+    'bright_red': '\033[38;5;88m',
     'dark_red': '\033[38;5;88m',
     'yellow': '\033[38;5;3m',
     'gold': '\033[38;5;214m',
@@ -139,7 +139,7 @@ def display_logo():
     
     # Current timestamp
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    footer = f"{COLORS['grey']}Developed by Daniel Navarro {COLORS['yellow']}(https://github.com/hippie-cycling){COLORS['reset']}"
+    footer = f"{COLORS['grey']}Developed by {COLORS['yellow']}(https://github.com/hippie-cycling){COLORS['reset']}"
     timestamp = f"{COLORS['blue']}Session started: {now}{COLORS['reset']}"
     
     print(footer.center(os.get_terminal_size().columns))
@@ -232,8 +232,6 @@ def display_about():
     """Display information about the toolkit"""
     about_text = f"""
 {EFFECTS['bold']}{COLORS['cyan']}Cipher Brute Force Toolkit{EFFECTS['reset']}{COLORS['reset']}
-
-{EFFECTS['italic']}Version 2.0.0 (February 2025){EFFECTS['reset']}
 
 A comprehensive toolkit designed for cryptanalysis and cipher breaking.
 This toolkit provides methods for brute forcing various classical ciphers
