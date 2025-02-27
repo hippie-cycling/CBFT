@@ -8,7 +8,7 @@ More ciphers to be implemented, **WIP**
 - Known Plaintext list-based attack.
 - IoC based analysis.
 - Frequency based analysis.
-- XOR decriptor.
+- XOR decriptor and brute forcer.
 
 To run the program, download the repository and launch main.py.
 
