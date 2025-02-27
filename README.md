@@ -4,8 +4,11 @@ A comprehensive toolkit designed for cryptanalysis and cipher breaking.
 This toolkit provides methods for brute forcing various classical ciphers including Vigenere, Gromark, and Gronsfeld.
 More ciphers to be implemented, **WIP**
 
-- Customizable alphabet support
-- Known Plaintext list-based attacks
-- Frequency analysis of potential solutions for transposition detection
+- Customizable alphabet support.
+- Known Plaintext list-based attack.
+- IoC based analysis (English 0.065-0.07).
+- Frequency analysis of potential solutions for transposition detection.
+
+To run the program, download the repository and launch main.py.
 
 This software is provided under the MIT License.
