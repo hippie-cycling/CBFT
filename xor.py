@@ -34,6 +34,10 @@ def map_to_alphabet(xor_result):
     """Map XOR result to A-Z (0-25)."""
     return [chr(65 + (value % 26)) for value in xor_result]
 
+def get_ascii_result(xor_result):
+    """Convert XOR result to ASCII characters."""
+    return ''.join(chr(x) for x in xor_result if 32 <= x <= 126)  # Printable ASCII only
+
 def calculate_ioc(text):
     """Calculate Index of Coincidence for the given text."""
     # Remove non-alphabetic characters and convert to uppercase
@@ -76,6 +80,10 @@ def analyze_frequency(text):
         if char.isalpha():
             letter_count[char] = letter_count.get(char, 0) + 1
             total_letters += 1
+    
+    if total_letters == 0:
+        result.append(f"{RED}No alphabetic characters found for analysis.{RESET}")
+        return "\n".join(result), float('inf')
     
     # Calculate frequencies and sort by frequency (descending)
     frequencies = [(char, count, count/total_letters*100) for char, count in letter_count.items()]
@@ -148,11 +156,17 @@ def analyze_frequency(text):
     
     # Show top bigrams
     top_bigrams = sorted(bigrams.items(), key=lambda x: x[1], reverse=True)[:8]
-    result.append(f"Top Bigrams: " + ", ".join([f"{RED}{b}{RESET}({c})" for b, c in top_bigrams]))
+    if top_bigrams:
+        result.append(f"Top Bigrams: " + ", ".join([f"{RED}{b}{RESET}({c})" for b, c in top_bigrams]))
+    else:
+        result.append(f"No bigrams found.")
     
     # Show top trigrams
     top_trigrams = sorted(trigrams.items(), key=lambda x: x[1], reverse=True)[:8]
-    result.append(f"Top Trigrams: " + ", ".join([f"{RED}{t}{RESET}({c})" for t, c in top_trigrams]))
+    if top_trigrams:
+        result.append(f"Top Trigrams: " + ", ".join([f"{RED}{t}{RESET}({c})" for t, c in top_trigrams]))
+    else:
+        result.append(f"No trigrams found.")
     
     # Add Index of Coincidence calculation
     ioc = calculate_ioc(text)
@@ -172,10 +186,13 @@ def save_to_file(results, filename):
             file.write(f"XOR Decryption Results - {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
             file.write(f"=" * 80 + "\n\n")
             
-            for i, (key, plaintext, ioc, frequency_analysis, likeness_score) in enumerate(results):
+            for i, result_data in enumerate(results):
+                key, result_type, result_text, ioc, frequency_analysis, likeness_score = result_data
+                
                 file.write(f"Match #{i+1}\n")
                 file.write(f"Key: {key}\n")
-                file.write(f"Plaintext: {plaintext}\n")
+                file.write(f"Result Type: {result_type}\n")
+                file.write(f"Decrypted Text: {result_text}\n")
                 file.write(f"IoC: {ioc:.6f}\n")
                 file.write(f"English Likeness Score: {likeness_score:.2f} (lower is better)\n\n")
                 
@@ -201,7 +218,7 @@ def save_to_file(results, filename):
         print(f"{RED}Error saving results: {e}{RESET}")
         return False
 
-def print_colored_output(message, key, xor_result, alphabet_result=None, ioc=None):
+def print_colored_output(message, key, xor_result, alphabet_result=None, ascii_result=None, ioc_az=None, ioc_ascii=None):
     """Print the results with color formatting."""
     print(f"\n{GREY}Original message:{RESET} {message}")
     print(f"{GREY}Key used:{RESET} {key}")
@@ -212,7 +229,9 @@ def print_colored_output(message, key, xor_result, alphabet_result=None, ioc=Non
     
     # Display character representation
     print(f"\n{RED}XOR Result (ASCII):{RESET}")
-    print("".join(chr(x) for x in xor_result))
+    print(ascii_result)
+    if ioc_ascii is not None:
+        print(f"{BLUE}ASCII IoC:{RESET} {ioc_ascii:.6f}")
     
     # Display hex representation
     print(f"\n{RED}XOR Result (hex):{RESET}")
@@ -221,13 +240,13 @@ def print_colored_output(message, key, xor_result, alphabet_result=None, ioc=Non
     # If mapped to alphabet, display that too
     if alphabet_result:
         print(f"\n{YELLOW}XOR Result (mapped to A-Z):{RESET}")
-        print("".join(alphabet_result))
+        print(alphabet_result)
         
-        if ioc is not None:
-            print(f"{BLUE}Index of Coincidence:{RESET} {ioc:.6f}")
+        if ioc_az is not None:
+            print(f"{BLUE}A-Z IoC:{RESET} {ioc_az:.6f}")
 
 def brute_force_with_ioc(ciphertext, min_ioc=0.065, max_ioc=0.07, perform_freq_analysis=False, freq_threshold=45.0):
-    """Try each word in the wordlist as a key, filter by IoC, and optionally by frequency analysis."""
+    """Try each word in the wordlist as a key, filter by IoC for both ASCII and A-Z results."""
     try:
         if not os.path.exists(WORDLIST_PATH):
             print(f"{RED}Error: '{WORDLIST_PATH}' not found in the current directory.{RESET}")
@@ -246,6 +265,7 @@ def brute_force_with_ioc(ciphertext, min_ioc=0.065, max_ioc=0.07, perform_freq_a
     print(f"{GREY}IoC filter range: {min_ioc} to {max_ioc}{RESET}")
     if perform_freq_analysis:
         print(f"{GREY}Frequency analysis will be performed (threshold: {freq_threshold}){RESET}")
+    print(f"{GREY}Analyzing both ASCII and A-Z mapped results{RESET}")
     
     words_checked = 0
     for word in words:
@@ -258,27 +278,45 @@ def brute_force_with_ioc(ciphertext, min_ioc=0.065, max_ioc=0.07, perform_freq_a
             continue
             
         xor_result = xor_strings(ciphertext, word)
+        
+        # Get both ASCII and A-Z mapped results
+        ascii_result = get_ascii_result(xor_result)
         alphabet_result = ''.join(map_to_alphabet(xor_result))
         
-        ioc = calculate_ioc(alphabet_result)
+        # Calculate IoC for both
+        ioc_ascii = calculate_ioc(ascii_result)
+        ioc_az = calculate_ioc(alphabet_result)
         
-        if min_ioc <= ioc <= max_ioc:
-            # If frequency analysis requested, perform it
-            if perform_freq_analysis:
-                freq_analysis, likeness_score = analyze_frequency(alphabet_result)
-                if likeness_score <= freq_threshold:
-                    results.append((word, alphabet_result, ioc, freq_analysis, likeness_score))
-            else:
-                # Add empty frequency analysis data if not performing it
-                results.append((word, alphabet_result, ioc, "", 0))
+        # Check both results against IoC range
+        ascii_match = min_ioc <= ioc_ascii <= max_ioc and len(ascii_result.strip()) > 0
+        az_match = min_ioc <= ioc_az <= max_ioc
+        
+        if ascii_match or az_match:
+            # Process ASCII match
+            if ascii_match:
+                if perform_freq_analysis:
+                    freq_analysis, likeness_score = analyze_frequency(ascii_result)
+                    if likeness_score <= freq_threshold:
+                        results.append((word, "ASCII", ascii_result, ioc_ascii, freq_analysis, likeness_score))
+                else:
+                    results.append((word, "ASCII", ascii_result, ioc_ascii, "", float('inf')))
+            
+            # Process A-Z match
+            if az_match:
+                if perform_freq_analysis:
+                    freq_analysis, likeness_score = analyze_frequency(alphabet_result)
+                    if likeness_score <= freq_threshold:
+                        results.append((word, "A-Z", alphabet_result, ioc_az, freq_analysis, likeness_score))
+                else:
+                    results.append((word, "A-Z", alphabet_result, ioc_az, "", float('inf')))
     
     print(f"{GREY}Completed! {total_words} words checked.{RESET}                ")
     
-    # Sort results by frequency likeness score if frequency analysis was performed
+    # Sort results - first by frequency analysis score if available, then by IoC
     if perform_freq_analysis:
-        results.sort(key=lambda x: x[4])  # Sort by likeness score (lower is better)
+        results.sort(key=lambda x: (x[5], -x[3]))  # Sort by likeness score, then by IoC (descending)
     else:
-        results.sort(key=lambda x: x[2], reverse=True)  # Sort by IoC
+        results.sort(key=lambda x: x[3], reverse=True)  # Sort by IoC
         
     return results
 
@@ -287,31 +325,50 @@ def main():
     print(f"{RED}= String XOR Encryptor & IoC Cracker ={RESET}")
     print(f"{RED}======================================{RESET}")
     
-    mode = input(f"\n{GREY}Choose mode (1 = Decrypt, 2 = Brute Force): {RESET}")
+    mode = input(f"\n{GREY}Choose mode (1=Encrypt, 2=Brute Force): {RESET}")
     
     if mode == '1':
         # Encryption mode
-        message = input(f"\n{GREY}Enter the cipher: {RESET}")
+        message = input(f"\n{GREY}Enter the message: {RESET}")
         key = input(f"{GREY}Enter the key: {RESET}")
         
         # Perform XOR operation
         xor_result = xor_strings(message, key)
         
+        # Get both ASCII and A-Z results
+        ascii_result = get_ascii_result(xor_result)
+        ioc_ascii = calculate_ioc(ascii_result)
+        
         # Ask if user wants to map to alphabet
-        map_option = input(f"\n{GREY}Map result to A-Z? (Y/N): {RESET}").lower()
+        map_option = input(f"\n{GREY}Map result to A-Z? (y/n): {RESET}").lower()
         
         if map_option == 'y':
-            alphabet_result = map_to_alphabet(xor_result)
-            ioc = calculate_ioc(''.join(alphabet_result))
-            print_colored_output(message, key, xor_result, alphabet_result, ioc)
+            alphabet_result = ''.join(map_to_alphabet(xor_result))
+            ioc_az = calculate_ioc(alphabet_result)
+            print_colored_output(message, key, xor_result, alphabet_result, ascii_result, ioc_az, ioc_ascii)
             
             # Option to perform frequency analysis
-            freq_option = input(f"\n{GREY}Perform frequency analysis? (Y/N): {RESET}").lower()
+            freq_option = input(f"\n{GREY}Perform frequency analysis? (y/n): {RESET}").lower()
             if freq_option == 'y':
-                analysis, _ = analyze_frequency(''.join(alphabet_result))
-                print(analysis)
+                analyze_type = input(f"{GREY}Analyze which output? (1=ASCII, 2=A-Z, 3=Both): {RESET}")
+                
+                if analyze_type == '1' or analyze_type == '3':
+                    print(f"\n{YELLOW}ASCII Result Analysis:{RESET}")
+                    analysis, _ = analyze_frequency(ascii_result)
+                    print(analysis)
+                
+                if analyze_type == '2' or analyze_type == '3':
+                    print(f"\n{YELLOW}A-Z Mapped Result Analysis:{RESET}")
+                    analysis, _ = analyze_frequency(alphabet_result)
+                    print(analysis)
         else:
-            print_colored_output(message, key, xor_result)
+            print_colored_output(message, key, xor_result, None, ascii_result, None, ioc_ascii)
+            
+            # Option to perform frequency analysis on ASCII
+            freq_option = input(f"\n{GREY}Perform frequency analysis on ASCII result? (y/n): {RESET}").lower()
+            if freq_option == 'y':
+                analysis, _ = analyze_frequency(ascii_result)
+                print(analysis)
     
     elif mode == '2':
         # Brute force mode
@@ -325,7 +382,7 @@ def main():
         min_ioc = 0.065
         max_ioc = 0.07
         
-        custom_ioc = input(f"{GREY}Use default IoC range (0.065-0.07)? (Y/N): {RESET}").lower()
+        custom_ioc = input(f"{GREY}Use default IoC range (0.065-0.07)? (y/n): {RESET}").lower()
         if custom_ioc == 'n':
             try:
                 min_ioc = float(input(f"{GREY}Enter minimum IoC value: {RESET}"))
@@ -334,13 +391,13 @@ def main():
                 print(f"{RED}Invalid IoC values, using defaults.{RESET}")
         
         # Ask if frequency analysis should be performed
-        perform_freq = input(f"{GREY}Perform frequency analysis to find English-like text? (Y/N): {RESET}").lower()
+        perform_freq = input(f"{GREY}Perform frequency analysis to find English-like text? (y/n): {RESET}").lower()
         perform_freq_analysis = perform_freq == 'y'
         
         freq_threshold = 45.0
         if perform_freq_analysis:
             try:
-                custom_threshold = input(f"{GREY}Use default frequency deviation threshold (45.0)? (Y/N): {RESET}").lower()
+                custom_threshold = input(f"{GREY}Use default frequency deviation threshold (45.0)? (y/n): {RESET}").lower()
                 if custom_threshold == 'n':
                     freq_threshold = float(input(f"{GREY}Enter frequency deviation threshold (lower values = more English-like): {RESET}"))
             except ValueError:
@@ -353,10 +410,11 @@ def main():
             
             # Display top results
             display_count = min(10, len(results))
-            for i, (key, plaintext, ioc, freq_analysis, likeness_score) in enumerate(results[:display_count]):
+            for i, (key, result_type, result_text, ioc, freq_analysis, likeness_score) in enumerate(results[:display_count]):
                 print(f"\n{YELLOW}Match #{i+1}:{RESET}")
                 print(f"{GREY}Key:{RESET} {key}")
-                print(f"{GREY}Plaintext:{RESET} {plaintext}")
+                print(f"{GREY}Type:{RESET} {result_type}")
+                print(f"{GREY}Decrypted text:{RESET} {result_text}")
                 print(f"{GREY}IoC:{RESET} {ioc:.6f}")
                 if perform_freq_analysis:
                     print(f"{GREY}English Likeness Score:{RESET} {likeness_score:.2f} (lower is better)")
@@ -368,7 +426,7 @@ def main():
                 see_details = input(f"\n{GREY}View frequency analysis for a specific match? (Enter match # or 'n'): {RESET}")
                 if see_details.isdigit() and 1 <= int(see_details) <= len(results):
                     match_idx = int(see_details) - 1
-                    print(results[match_idx][3])  # Print the frequency analysis
+                    print(results[match_idx][4])  # Print the frequency analysis
             
             # Ask to save results to a file
             save_option = input(f"\n{GREY}Save results to a file? (y/n): {RESET}").lower()
