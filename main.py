@@ -216,6 +216,8 @@ The user can input a cipher and a key and the script will XOR both.
 If the key length is shorter than the cipher, the key will be repeated.
 The script will output the XOR result in decimal, ASCII, and hex format.
 The user can also map the result to A-Z (0-25) for further analysis.
+IoC brute force analysis is also available.
+Frequency analysis is also available.
 
 {EFFECTS['underline']}Tips & Warnings:{EFFECTS['reset']}
 • You don´t know any plaintext word? try common words such as "FROM, "THE", "LIKE", "THAT", etc.
