@@ -211,9 +211,16 @@ The brute force will check every key and output the keys that decrypt the
 plaintext words and the keys that generate an IoC close to English 
 (0.06 <= ioc <= 0.07) for further analysis.
 
+{COLORS['yellow']}XOR:{COLORS['reset']}
+The user can input a cipher and a key and the script will XOR both.
+If the key length is shorter than the cipher, the key will be repeated.
+The script will output the XOR result in decimal, ASCII, and hex format.
+The user can also map the result to A-Z (0-25) for further analysis.
+
 {EFFECTS['underline']}Tips & Warnings:{EFFECTS['reset']}
 • You don´t know any plaintext word? try common words such as "FROM, "THE", "LIKE", "THAT", etc.
-Note that a large quantity of outputs will be generated. So choose wisely.
+Note that a large quantity of outputs will be generated. So choose wisely and perform frequency
+analysis to filter potential solutions.
 """
     clear_screen()
     print(help_text)
@@ -235,7 +242,7 @@ including Vigenere, Gromark, and Gronsfeld.
 • Word list-based attacks
 • Index of Coincidence (IoC) analysis
 • Frequency analysis
-• Transposition detection
+• XOR operation and analysis
 
 {EFFECTS['underline']}Developer:{EFFECTS['reset']}
 Daniel Navarro
