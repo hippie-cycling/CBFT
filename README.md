@@ -1,7 +1,7 @@
 # CBFT [Cipher Brute Force Tool]
 
 A comprehensive console-based toolkit designed for cryptanalysis and cipher breaking.
-This toolkit provides methods for brute forcing various classical ciphers including Vigenere, Gromark, and Gronsfeld.
+This toolkit provides methods for brute forcing various classical ciphers including Vigenere, Gromark, Gronsfeld and XOR.
 More ciphers to be implemented, **WIP**
 
 - Customizable alphabet support.
