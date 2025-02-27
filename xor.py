@@ -261,17 +261,17 @@ def brute_force_with_ioc(ciphertext, min_ioc=0.065, max_ioc=0.07, perform_freq_a
     results = []
     total_words = len(words)
     
-    print(f"{GREY}Starting brute force with {total_words} words...{RESET}")
-    print(f"{GREY}IoC filter range: {min_ioc} to {max_ioc}{RESET}")
+    print(f"\n{YELLOW}Starting brute force with {total_words} words...{RESET}")
+    print(f"\n-{GREY}IoC filter range: {min_ioc} to {max_ioc}{RESET}")
     if perform_freq_analysis:
-        print(f"{GREY}Frequency analysis will be performed (threshold: {freq_threshold}){RESET}")
-    print(f"{GREY}Analyzing both ASCII and A-Z mapped results{RESET}")
+        print(f"-{GREY}Frequency analysis will be performed (threshold: {freq_threshold}){RESET}")
+    print(f"\n{YELLOW}Analyzing both ASCII and A-Z mapped results...{RESET}\n")
     
     words_checked = 0
     for word in words:
         words_checked += 1
         if words_checked % 1000 == 0:
-            print(f"{GREY}Progress: {words_checked}/{total_words} words checked...{RESET}", end='\r')
+            print(f"{GREY}Progress: {RED}{words_checked}{RESET}/{YELLOW}{total_words}{RESET} words checked...{RESET}", end='\r')
         
         # Skip empty words or words with non-ASCII characters
         if not word or not all(ord(c) < 128 for c in word):
@@ -322,10 +322,10 @@ def brute_force_with_ioc(ciphertext, min_ioc=0.065, max_ioc=0.07, perform_freq_a
 
 def main():
     print(f"{RED}======================================{RESET}")
-    print(f"{RED}= String XOR Encryptor & IoC Cracker ={RESET}")
+    print(f"{RED}= String XOR Decryptor & IoC Cracker ={RESET}")
     print(f"{RED}======================================{RESET}")
     
-    mode = input(f"\n{GREY}Choose mode (1=Encrypt, 2=Brute Force): {RESET}")
+    mode = input(f"\n{GREY}Choose mode (1 = Decrypt, 2 = Brute Force): {RESET}")
     
     if mode == '1':
         # Encryption mode
