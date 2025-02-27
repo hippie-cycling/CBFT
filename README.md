@@ -1,3 +1,10 @@
+
+  ██████╗██████╗ ███████╗████████╗
+ ██╔════╝██╔══██╗██╔════╝╚══██╔══╝
+ ██║     ██████╔╝█████╗     ██║   
+ ██║     ██╔══██╗██╔══╝     ██║   
+ ╚██████╗██████╔╝██║        ██║   
+  ╚═════╝╚═════╝ ╚═╝        ╚═╝   
 # CBFT [Cipher Brute Force Tool]
 
 A comprehensive toolkit designed for cryptanalysis and cipher breaking.
