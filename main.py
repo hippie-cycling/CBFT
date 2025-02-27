@@ -23,6 +23,12 @@ try:
 except ImportError:
     gronsfeld_imported = False
 
+try:
+    import xor
+    xor_imported = True
+except ImportError:
+    xor_imported = False
+
 # Enhanced colors and styling
 COLORS = {
     'red': '\033[38;5;196m',
@@ -66,18 +72,10 @@ EFFECTS = {
     'reset': '\033[0m'
 }
 
-def typing_effect(text, delay=0.02):
-    """Create a typing effect for text output"""
-    for char in text:
-        sys.stdout.write(char)
-        sys.stdout.flush()
-        time.sleep(delay)
-    print()
-
-def matrix_effect(duration=1.5):
+def matrix_effect(duration=2):
     """Create a matrix-like effect on the screen"""
     width = os.get_terminal_size().columns
-    chars = "01"
+    chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
     
     end_time = time.time() + duration
     while time.time() < end_time:
@@ -90,17 +88,6 @@ def matrix_effect(duration=1.5):
         print(line, end="\r")
         time.sleep(0.05)
     print(" " * width, end="\r")  # Clear the last line
-
-def progress_bar(text, duration=2):
-    """Show a fancy progress bar with text"""
-    width = os.get_terminal_size().columns - 10
-    print(f"{COLORS['yellow']}{text}...{COLORS['reset']}")
-    
-    for i in range(width + 1):
-        bar = f"[{COLORS['green']}{'█' * i}{COLORS['grey']}{'█' * (width - i)}{COLORS['reset']}] {i * 100 // width}%"
-        print(bar, end="\r")
-        time.sleep(duration / width)
-    print()
 
 def clear_screen():
     """Clear the terminal screen"""
@@ -166,8 +153,9 @@ def display_menu():
         (1, "Vigenere Cipher", "yellow", "Polyalphabetic substitution cipher using a keyword"),
         (2, "Gromark Cipher", "yellow", "Numerical key-based cipher with transposition"),
         (3, "Gronsfeld Cipher", "yellow", "Similar to Vigenere but using numbers as the key"),
-        (4, "About", "white", "Information about this toolkit"),
-        (5, "Exit", "red", "Exit the application")
+        (4, "XOR", "yellow", "Perform XOR operation on a message and key"),
+        (5, "About", "white", "Information about this toolkit"),
+        (6, "Exit", "red", "Exit the application")
     ]
     
     menu_width = os.get_terminal_size().columns - 10
@@ -179,7 +167,8 @@ def display_menu():
     module_status = {
         "Vigenere": vigenere_imported,
         "Gromark": gromark_imported,
-        "Gronsfeld": gronsfeld_imported
+        "Gronsfeld": gronsfeld_imported,
+        "XOR": xor_imported
     }
     
     for opt in options:
@@ -245,8 +234,8 @@ including Vigenere, Gromark, and Gronsfeld.
 • Customizable alphabet support
 • Word list-based attacks
 • Index of Coincidence (IoC) analysis
+• Frequency analysis
 • Transposition detection
-• Interactive user interface
 
 {EFFECTS['underline']}Developer:{EFFECTS['reset']}
 Daniel Navarro
@@ -282,7 +271,7 @@ def main():
         display_menu()
         
         try:
-            choice = input(f"\n{COLORS['yellow']}Enter your choice (0-5): {COLORS['reset']}").strip()
+            choice = input(f"\n{COLORS['yellow']}Enter your choice (0-6): {COLORS['reset']}").strip()
             
             if choice == '0':
                 display_help()
@@ -293,8 +282,10 @@ def main():
             elif choice == '3':
                 run_cipher(Gronsfeld if gronsfeld_imported else None, "Gronsfeld", "yellow")
             elif choice == '4':
-                display_about()
+                run_cipher(xor if xor_imported else None, "XOR", "yellow")
             elif choice == '5':
+                display_about()
+            elif choice == '6':
                 clear_screen()
                 matrix_effect(1.0)
                 break
