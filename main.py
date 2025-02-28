@@ -4,6 +4,12 @@ import random
 import sys
 from datetime import datetime
 
+#TO-DO Substitution ciphers
+# Modular Addition
+# Running key cipher
+# Chaocipher
+# Autokey cipher
+
 # Try to import the cipher modules
 try:
     import vigenere
@@ -28,6 +34,12 @@ try:
     xor_imported = True
 except ImportError:
     xor_imported = False
+
+try:
+    import modular_add_sub
+    modular_add_sub_imported = True
+except ImportError:
+    modular_add_sub_imported = False
 
 # Enhanced colors and styling
 COLORS = {
@@ -145,6 +157,38 @@ def display_logo():
     print(footer.center(os.get_terminal_size().columns))
     print(timestamp.center(os.get_terminal_size().columns))
     print(f"{COLORS['grey']}{'═' * os.get_terminal_size().columns}{COLORS['reset']}")
+                                                                  
+def display_avatar():   
+    avatar = f"""{COLORS['dark_red']}                                                                  
+                                                                      
+                          .=*: *%%%@@%#*:--..                         
+                    .==+*+-                 :+**#                     
+                .---                              =**                 
+             +-            ....      .  :. :         =%-              
+          +*.           .          ## -- --.:::. .     -#%            
+        **                ==-:..-*@%@=*%      :..     .@  -%          
+       %:             =.            .* .  @@@@@@@@@@@##@    *@:       
+     @@                    %@@@@@@*  -%@  @@@@-  =:@@@=       @-      
+    @@.        @@:       #@@@@@@@@= .@:        +%@@:     -     @.     
+   %#:         .  -@-  *@@@#@@@%#:          =@#+@@@@#*@% .+@.   @     
+   @@@               =*=.  @* #@@@@* -     @@%. @@@@@@%@@@@@+   :@    
+  +@@*.         :        :.@@@@@@@@@@@    @@@+   =%@@+@@+    -   @    
+   @*%     .      :=    +@@@@+@@@@@  %@.   @@#+%**#*@@@          @    
+   @@@@           ::=@@@@@  +@@@@#  @@@@#   @@@*+=%@%=:          @    
+   @@@@+            -:.  %@#. +*..+@@--+@#   %@. +#*            @%    
+   -@@@+  -=        .=:=*@*@@@**@@-  .+#:%+  -- @+             %@     
+    @-@#: :        -.   . *@ +         @- #     @# +.         +@      
+     @%@@@@=       :@   *@           -@@@=.   :@@%+==@*     .@*       
+      -@@@@=           -@+=         %%@@@@@@@@@@@@@@@@@  - -@*        
+       .@#@@:        .: ..        * +@@@@@@@@@@@@@@@:*:   *=          
+         +@#+. -#=:%%    +       **@@@@@@@@@@@@@@@@: +-.#*            
+            @=    #@@    #*       .%=   .*@@@@@@*   -@@:              
+           @-    .@@@@@@@@@%        *@=    :    :  *%                 
+           @%  -@%+ *%@@@%#@=-.-     =#%%#-:.  #@@@:                  
+            *@@@=           =++*--*@@%%*#++%@@@                       
+
+    {COLORS['reset']}"""                                                                      
+    print(avatar)                                                                      
 
 def display_menu():
     """Display the enhanced menu"""
@@ -153,9 +197,10 @@ def display_menu():
         (1, "Vigenere Cipher", "yellow", "Polyalphabetic substitution cipher using a keyword"),
         (2, "Gromark Cipher", "yellow", "Numerical key-based cipher with transposition"),
         (3, "Gronsfeld Cipher", "yellow", "Similar to Vigenere but using numbers as the key"),
-        (4, "XOR", "yellow", "Perform XOR operation on a message and key"),
-        (5, "About", "white", "Information about this toolkit"),
-        (6, "Exit", "red", "Exit the application")
+        (4, "XOR", "yellow", "Perform XOR operation"),
+        (5, "Mod. ADD / SUB", "yellow", "Perform modular addition or subtraction"),
+        (6, "About", "white", "Information about this toolkit"),
+        (7, "Exit", "red", "Exit the application")
     ]
     
     menu_width = os.get_terminal_size().columns - 10
@@ -168,7 +213,8 @@ def display_menu():
         "Vigenere": vigenere_imported,
         "Gromark": gromark_imported,
         "Gronsfeld": gronsfeld_imported,
-        "XOR": xor_imported
+        "XOR": xor_imported,
+        "Mod. ADD / SUB": modular_add_sub_imported
     }
     
     for opt in options:
@@ -219,6 +265,12 @@ The user can also map the result to A-Z (0-25) for further analysis.
 IoC brute force analysis is also available.
 Frequency analysis is also available.
 
+{COLORS['yellow']}Mod. ADD / SUB:{COLORS['reset']}
+The user can input a cipher and a key and the script will add or subtract both (modulo).
+If the key length is shorter than the cipher, the key will be repeated.
+IoC brute force analysis is also available.
+Frequency analysis is also available.
+
 {EFFECTS['underline']}Tips & Warnings:{EFFECTS['reset']}
 • You don´t know any plaintext word? try common words such as "FROM, "THE", "LIKE", "THAT", etc.
 Note that a large quantity of outputs will be generated. So choose wisely and perform frequency
@@ -243,6 +295,7 @@ including Vigenere, Gromark, and Gronsfeld.
 • Index of Coincidence (IoC) analysis
 • Frequency analysis
 • XOR operation and analysis
+• Modular addition and subtraction
 
 {EFFECTS['underline']}Developer:{EFFECTS['reset']}
 Daniel Navarro
@@ -252,6 +305,7 @@ Daniel Navarro
 This software is provided under the MIT License.
 """
     clear_screen()
+    display_avatar()
     print(about_text)
     input(f"\n{COLORS['yellow']}Press Enter to return to the main menu...{COLORS['reset']}")
 
@@ -291,8 +345,10 @@ def main():
             elif choice == '4':
                 run_cipher(xor if xor_imported else None, "XOR", "yellow")
             elif choice == '5':
-                display_about()
+                run_cipher(modular_add_sub if modular_add_sub_imported else None, "Mod. ADD / SUB", "yellow")
             elif choice == '6':
+                display_about()
+            elif choice == '7':
                 clear_screen()
                 matrix_effect(1.0)
                 break
