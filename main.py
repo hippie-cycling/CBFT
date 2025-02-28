@@ -203,7 +203,7 @@ def display_menu():
         (3, "Gronsfeld Cipher", "yellow", "Similar to Vigenere but using numbers as the key"),
         (4, "Autoclave Cipher", "yellow", "Also known as the autokey cipher"),
         (5, "XOR", "yellow", "Perform XOR operation"),
-        (6, "Mod. ADD-SUB", "yellow", "Perform modular addition or subtraction"),
+        (6, "Mod ADD-SUB", "yellow", "Perform modular addition or subtraction"),
         (7, "About", "white", "Information about this toolkit"),
         (8, "Exit", "red", "Exit the application")
     ]
@@ -219,7 +219,7 @@ def display_menu():
         "Gromark": gromark_imported,
         "Gronsfeld": gronsfeld_imported,
         "XOR": xor_imported,
-        "Mod. ADD-SUB": modular_add_sub_imported,
+        "Mod ADD-SUB": modular_add_sub_imported,
         "Autoclave": autoclave_imported
     }
     
@@ -275,7 +275,7 @@ The user can also map the result to A-Z (0-25) for further analysis.
 IoC brute force analysis is also available.
 Frequency analysis is also available.
 
-{COLORS['yellow']}Mod. ADD-SUB:{COLORS['reset']}
+{COLORS['yellow']}Mod ADD-SUB:{COLORS['reset']}
 The user can input a cipher and a key and the script will add or subtract both (modulo).
 If the key length is shorter than the cipher, the key will be repeated.
 IoC brute force analysis is also available.
@@ -297,18 +297,21 @@ def display_about():
 
 A comprehensive toolkit designed for cryptanalysis and cipher breaking.
 This toolkit provides methods for brute forcing various classical ciphers
-including Vigenere, Gromark, and Gronsfeld.
+including Vigenere, Gromark, Gronsfeld, Autokey, XOR, modulo based Addition
+and Subtraction.
+
+{EFFECTS['underline']}This is a WIP project and more features will be added in the future.{EFFECTS['reset']}
 
 {EFFECTS['underline']}Features:{EFFECTS['reset']}
 • Customizable alphabet support
 • Word list-based attacks
+• Bruteforce using 350k English words
+• XOR decryption and brute forcing
+• Modular addition and subtraction decryption and brute forcing
 • Index of Coincidence (IoC) analysis
 • Frequency analysis
-• XOR operation and analysis
-• Modular addition and subtraction
 
 {EFFECTS['underline']}Developer:{EFFECTS['reset']}
-Daniel Navarro
 {COLORS['yellow']}https://github.com/hippie-cycling{COLORS['reset']}
 
 {EFFECTS['underline']}License:{EFFECTS['reset']}
@@ -342,7 +345,7 @@ def main():
         display_menu()
         
         try:
-            choice = input(f"\n{COLORS['yellow']}Enter your choice (0-6): {COLORS['reset']}").strip()
+            choice = input(f"\n{COLORS['yellow']}Enter your choice (0-8): {COLORS['reset']}").strip()
             
             if choice == '0':
                 display_help()
@@ -357,7 +360,7 @@ def main():
             elif choice == '5':
                 run_cipher(xor if xor_imported else None, "XOR", "yellow")
             elif choice == '6':
-                run_cipher(modular_add_sub if modular_add_sub_imported else None, "Mod. ADD-SUB", "yellow")
+                run_cipher(modular_add_sub if modular_add_sub_imported else None, "Mod ADD-SUB", "yellow")
             elif choice == '7':
                 display_about()
             elif choice == '8':
