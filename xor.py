@@ -386,7 +386,7 @@ def run():
                 alphabet_result = ''.join(map_to_alphabet(xor_result))
                 ioc_az = calculate_ioc(alphabet_result)
                 print_colored_output(input_data, input_format, key, xor_result, alphabet_result, ascii_result, ioc_az, ioc_ascii)
-                
+                print(f"Please note that: {RED}A-Z Mapping is lossy thus non-reversible!{RESET}")
                 # Option to perform frequency analysis
                 freq_option = input(f"\n{GREY}Perform frequency analysis? (y/n): {RESET}").lower()
                 if freq_option == 'y':
@@ -398,9 +398,10 @@ def run():
                         print(analysis)
                     
                     if analyze_type == '2' or analyze_type == '3':
-                        print(f"\n{YELLOW}A-Z Mapped Result Analysis:{RESET}")
+                        print(f"\n{YELLOW}A-Z Mapped Result Analysis :{RESET}")
                         analysis, _ = analyze_frequency(alphabet_result)
                         print(analysis)
+                        print(f"\nPlease note that: {RED}!!!Mapping is lossy thus non-reversible!!!{RESET}")
             else:
                 print_colored_output(input_data, input_format, key, xor_result, None, ascii_result, None, ioc_ascii)
                 
