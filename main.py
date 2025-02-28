@@ -5,10 +5,8 @@ import sys
 from datetime import datetime
 
 #TO-DO Substitution ciphers
-# Modular Addition
 # Running key cipher
 # Chaocipher
-# Autokey cipher
 
 # Try to import the cipher modules
 try:
@@ -40,6 +38,12 @@ try:
     modular_add_sub_imported = True
 except ImportError:
     modular_add_sub_imported = False
+
+try:
+    import autoclave
+    autoclave_imported = True
+except ImportError:
+    autoclave_imported = False
 
 # Enhanced colors and styling
 COLORS = {
@@ -197,10 +201,11 @@ def display_menu():
         (1, "Vigenere Cipher", "yellow", "Polyalphabetic substitution cipher using a keyword"),
         (2, "Gromark Cipher", "yellow", "Numerical key-based cipher with transposition"),
         (3, "Gronsfeld Cipher", "yellow", "Similar to Vigenere but using numbers as the key"),
-        (4, "XOR", "yellow", "Perform XOR operation"),
-        (5, "Mod. ADD / SUB", "yellow", "Perform modular addition or subtraction"),
-        (6, "About", "white", "Information about this toolkit"),
-        (7, "Exit", "red", "Exit the application")
+        (4, "Autoclave Cipher", "yellow", "Also known as the autokey cipher"),
+        (5, "XOR", "yellow", "Perform XOR operation"),
+        (6, "Mod. ADD-SUB", "yellow", "Perform modular addition or subtraction"),
+        (7, "About", "white", "Information about this toolkit"),
+        (8, "Exit", "red", "Exit the application")
     ]
     
     menu_width = os.get_terminal_size().columns - 10
@@ -214,7 +219,8 @@ def display_menu():
         "Gromark": gromark_imported,
         "Gronsfeld": gronsfeld_imported,
         "XOR": xor_imported,
-        "Mod. ADD / SUB": modular_add_sub_imported
+        "Mod. ADD-SUB": modular_add_sub_imported,
+        "Autoclave": autoclave_imported
     }
     
     for opt in options:
@@ -243,8 +249,8 @@ def display_help():
 {COLORS['yellow']}Vigenere Cipher:{COLORS['reset']}
 The user can input a custom alphabet and plaintext words to be found. 
 The brute force will check every word in a large list of English words and output 
-the keys that decrypt the plaintext words and/or the keys that generate an IoC 
-close to English (0.06 <= ioc <= 0.07) for further analysis.
+the keys that decrypt the plaintext words and/or the keys that generate the 
+defined IoC for further analysis.
 
 {COLORS['yellow']}Gromark Cipher:{COLORS['reset']}
 Input the ciphertext and it will brute force all words from words_alpha.text. 
@@ -254,8 +260,12 @@ and/or the input words can be found in the output (even if transposed).
 {COLORS['yellow']}Gronsfeld Cipher:{COLORS['reset']}
 The user can input a custom alphabet and plaintext words to be found. 
 The brute force will check every key and output the keys that decrypt the 
-plaintext words and the keys that generate an IoC close to English 
-(0.06 <= ioc <= 0.07) for further analysis.
+plaintext words and the keys that generate the defined IoC for further analysis.
+
+{COLORS['yellow']}Autoclave Cipher:{COLORS['reset']}
+The user can input a custom alphabet and plaintext words to be found. 
+The brute force will check every key and output the keys that decrypt the 
+plaintext words and the keys that generate the defined IoC for further analysis.
 
 {COLORS['yellow']}XOR:{COLORS['reset']}
 The user can input a cipher and a key and the script will XOR both.
@@ -265,7 +275,7 @@ The user can also map the result to A-Z (0-25) for further analysis.
 IoC brute force analysis is also available.
 Frequency analysis is also available.
 
-{COLORS['yellow']}Mod. ADD / SUB:{COLORS['reset']}
+{COLORS['yellow']}Mod. ADD-SUB:{COLORS['reset']}
 The user can input a cipher and a key and the script will add or subtract both (modulo).
 If the key length is shorter than the cipher, the key will be repeated.
 IoC brute force analysis is also available.
@@ -343,12 +353,14 @@ def main():
             elif choice == '3':
                 run_cipher(Gronsfeld if gronsfeld_imported else None, "Gronsfeld", "yellow")
             elif choice == '4':
-                run_cipher(xor if xor_imported else None, "XOR", "yellow")
+                run_cipher(autoclave if autoclave_imported else None, "Gronsfeld", "yellow")
             elif choice == '5':
-                run_cipher(modular_add_sub if modular_add_sub_imported else None, "Mod. ADD / SUB", "yellow")
+                run_cipher(xor if xor_imported else None, "XOR", "yellow")
             elif choice == '6':
-                display_about()
+                run_cipher(modular_add_sub if modular_add_sub_imported else None, "Mod. ADD-SUB", "yellow")
             elif choice == '7':
+                display_about()
+            elif choice == '8':
                 clear_screen()
                 matrix_effect(1.0)
                 break
