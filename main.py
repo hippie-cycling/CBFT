@@ -3,355 +3,266 @@ import time
 import random
 import sys
 from datetime import datetime
+
 # Try to import the cipher modules
-try:
-    from scripts import vigenere
-    vigenere_imported = True
-except ImportError:
-    vigenere_imported = False
-
-try:
-    from scripts import Gromark_transposition
-    gromark_imported = True
-except ImportError:
-    gromark_imported = False
-
-try:
-    from scripts import Gronsfeld
-    gronsfeld_imported = True
-except ImportError:
-    gronsfeld_imported = False
-
-try:
-    from scripts import xor
-    xor_imported = True
-except ImportError:
-    xor_imported = False
-
-try:
-    from scripts import modular_add_sub
-    modular_add_sub_imported = True
-except ImportError:
-    modular_add_sub_imported = False
-
-try:
-    from scripts import autoclave
-    autoclave_imported = True
-except ImportError:
-    autoclave_imported = False
-
-# Enhanced colors and styling
-COLORS = {
-    'red': '\033[38;5;88m',
-    'bright_red': '\033[38;5;88m',
-    'dark_red': '\033[38;5;88m',
-    'yellow': '\033[38;5;3m',
-    'gold': '\033[38;5;214m',
-    'orange': '\033[38;5;208m',
-    'green': '\033[38;5;46m',
-    'lime': '\033[38;5;118m',
-    'blue': '\033[38;5;39m',
-    'cyan': '\033[38;5;51m',
-    'magenta': '\033[38;5;201m',
-    'purple': '\033[38;5;93m',
-    'grey': '\033[38;5;240m',
-    'dark_grey': '\033[38;5;236m',
-    'white': '\033[38;5;255m',
-    'black': '\033[38;5;232m',
-    'reset': '\033[0m'
+CIPHER_MODULES = {
+    'vigenere': None,
+    'gromark': None,
+    'gronsfeld': None,
+    'autoclave': None,
+    'xor': None,
+    'mod_add_sub': None
 }
 
-# Background colors
-BG = {
-    'red': '\033[48;5;196m',
-    'dark_red': '\033[48;5;88m',
-    'black': '\033[48;5;232m',
-    'dark_grey': '\033[48;5;236m',
-    'grey': '\033[48;5;240m',
-    'blue': '\033[48;5;39m',
-    'reset': '\033[0m'
-}
+for module_name in CIPHER_MODULES:
+    try:
+        if module_name == 'gromark':
+            # Handle special case for Gromark module name
+            module = __import__(f'scripts.Gromark_transposition', fromlist=['run'])
+        elif module_name == 'mod_add_sub':
+            # Handle special case for modular_add_sub module name
+            module = __import__(f'scripts.modular_add_sub', fromlist=['run'])
+        else:
+            module = __import__(f'scripts.{module_name}', fromlist=['run'])
+        CIPHER_MODULES[module_name] = module
+    except ImportError:
+        pass
 
-# Text effects
-EFFECTS = {
-    'bold': '\033[1m',
-    'dim': '\033[2m',
-    'italic': '\033[3m',
-    'underline': '\033[4m',
-    'blink': '\033[5m',
-    'reverse': '\033[7m',
-    'reset': '\033[0m'
-}
-
-def matrix_effect(duration=2):
-    """Create a matrix-like effect on the screen"""
-    width = os.get_terminal_size().columns
-    chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+# Retro style colors and effects
+class Style:
+    # Colors
+    GREEN = '\033[32m'
+    YELLOW = '\033[33m'
+    RED = '\033[31m'
+    BLUE = '\033[34m'
+    CYAN = '\033[36m'
+    WHITE = '\033[37m'
+    GRAY = '\033[90m'
     
-    end_time = time.time() + duration
-    while time.time() < end_time:
-        line = ""
-        for i in range(width):
-            if random.random() > 0.8:
-                line += f"{COLORS['yellow']}{random.choice(chars)}{COLORS['reset']}"
-            else:
-                line += " "
-        print(line, end="\r")
-        time.sleep(0.05)
-    print(" " * width, end="\r")  # Clear the last line
+    # Effects
+    BOLD = '\033[1m'
+    REVERSE = '\033[7m'
+    UNDERLINE = '\033[4m'
+    
+    # Reset
+    RESET = '\033[0m'
 
 def clear_screen():
     """Clear the terminal screen"""
     os.system('cls' if os.name == 'nt' else 'clear')
 
-def fancy_box(text, color='yellow', width=None, padding=1):
-    """Create a fancy box around text"""
-    if width is None:
-        lines = text.split('\n')
-        width = max(len(line) for line in lines) + padding * 2
+def terminal_width():
+    """Get terminal width"""
+    return os.get_terminal_size().columns
+
+def print_centered(text, color=Style.WHITE):
+    """Print centered text with color"""
+    print(f"{color}{text.center(terminal_width())}{Style.RESET}")
+
+def print_divider(char='=', color=Style.GRAY):
+    """Print a divider line"""
+    print(f"{color}{char * terminal_width()}{Style.RESET}")
+
+def fancy_box(text, color=Style.YELLOW, padding=1):
+    """Create a retro box around text"""
+    lines = text.split('\n')
+    width = max(len(line) for line in lines) + padding * 2
     
-    horizontal = f"{COLORS[color]}╭{'─' * width}╮{COLORS['reset']}"
-    empty = f"{COLORS[color]}│{' ' * width}│{COLORS['reset']}"
+    print(f"{color}┌{'─' * width}┐{Style.RESET}")
     
-    print(horizontal)
-    if padding > 0:
-        for _ in range(padding):
-            print(empty)
-    
-    for line in text.split('\n'):
+    for line in lines:
         padding_needed = width - len(line)
         left_padding = padding_needed // 2
         right_padding = padding_needed - left_padding
-        print(f"{COLORS[color]}│{' ' * left_padding}{COLORS['reset']}{line}{COLORS[color]}{' ' * right_padding}│{COLORS['reset']}")
+        print(f"{color}│{' ' * left_padding}{Style.RESET}{line}{color}{' ' * right_padding}│{Style.RESET}")
     
-    if padding > 0:
-        for _ in range(padding):
-            print(empty)
+    print(f"{color}└{'─' * width}┘{Style.RESET}")
+
+def retro_effect(duration=1.5):
+    """Create a retro terminal effect"""
+    width = terminal_width()
+    chars = "█▓▒░ ░▒▓█"
     
-    bottom = f"{COLORS[color]}╰{'─' * width}╯{COLORS['reset']}"
-    print(bottom)
+    end_time = time.time() + duration
+    while time.time() < end_time:
+        line = ""
+        for i in range(width):
+            line += random.choice(chars)
+        print(f"{Style.GREEN}{line}{Style.RESET}", end="\r")
+        time.sleep(0.05)
+    print(" " * width, end="\r")  # Clear the last line
 
 def display_logo():
-    """Display the enhanced CBFT logo"""
-    logo = f"""{COLORS['dark_red']}
-  ██████╗██████╗ ███████╗████████╗
+    """Display the CBFT logo in retro style"""
+    logo = f"""
+    {Style.GREEN}  
+ ██████╗██████╗ ███████╗████████╗
  ██╔════╝██╔══██╗██╔════╝╚══██╔══╝
  ██║     ██████╔╝█████╗     ██║   
  ██║     ██╔══██╗██╔══╝     ██║   
  ╚██████╗██████╔╝██║        ██║   
-  ╚═════╝╚═════╝ ╚═╝        ╚═╝   
-{COLORS['reset']}"""
-
-    sub_title = f"{BG['dark_grey']}{COLORS['white']}{EFFECTS['bold']} CIPHER BRUTE FORCE TOOLKIT {EFFECTS['reset']}{BG['reset']}"
-    
+  ╚═════╝╚═════╝ ╚═╝        ╚═╝
+  {Style.RESET}
+    """
     print(logo)
-    print(sub_title.center(os.get_terminal_size().columns))
-    print(f"{COLORS['grey']}{'═' * os.get_terminal_size().columns}{COLORS['reset']}")
+    print(f"{Style.BOLD}{Style.REVERSE} CIPHER BRUTE FORCE TOOLKIT {Style.RESET}", Style.WHITE)
+    print_divider()
     
-    # Current timestamp
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    footer = f"{COLORS['grey']}Developed by {COLORS['yellow']}(https://github.com/hippie-cycling){COLORS['reset']}"
-    timestamp = f"{COLORS['blue']}Session started: {now}{COLORS['reset']}"
-    
-    print(footer.center(os.get_terminal_size().columns))
-    print(timestamp.center(os.get_terminal_size().columns))
-    print(f"{COLORS['grey']}{'═' * os.get_terminal_size().columns}{COLORS['reset']}")
-                                                                  
-def display_avatar():   
-    avatar = f"""{COLORS['dark_red']}                                                                  
-                                                                      
-                          .=*: *%%%@@%#*:--..                         
-                    .==+*+-                 :+**#                     
-                .---                              =**                 
-             +-            ....      .  :. :         =%-              
-          +*.           .          ## -- --.:::. .     -#%            
-        **                ==-:..-*@%@=*%      :..     .@  -%          
-       %:             =.            .* .  @@@@@@@@@@@##@    *@:       
-     @@                    %@@@@@@*  -%@  @@@@-  =:@@@=       @-      
-    @@.        @@:       #@@@@@@@@= .@:        +%@@:     -     @.     
-   %#:         .  -@-  *@@@#@@@%#:          =@#+@@@@#*@% .+@.   @     
-   @@@               =*=.  @* #@@@@* -     @@%. @@@@@@%@@@@@+   :@    
-  +@@*.         :        :.@@@@@@@@@@@    @@@+   =%@@+@@+    -   @    
-   @*%     .      :=    +@@@@+@@@@@  %@.   @@#+%**#*@@@          @    
-   @@@@           ::=@@@@@  +@@@@#  @@@@#   @@@*+=%@%=:          @    
-   @@@@+            -:.  %@#. +*..+@@--+@#   %@. +#*            @%    
-   -@@@+  -=        .=:=*@*@@@**@@-  .+#:%+  -- @+             %@     
-    @-@#: :        -.   . *@ +         @- #     @# +.         +@      
-     @%@@@@=       :@   *@           -@@@=.   :@@%+==@*     .@*       
-      -@@@@=           -@+=         %%@@@@@@@@@@@@@@@@@  - -@*        
-       .@#@@:        .: ..        * +@@@@@@@@@@@@@@@:*:   *=          
-         +@#+. -#=:%%    +       **@@@@@@@@@@@@@@@@: +-.#*            
-            @=    #@@    #*       .%=   .*@@@@@@*   -@@:              
-           @-    .@@@@@@@@@%        *@=    :    :  *%                 
-           @%  -@%+ *%@@@%#@=-.-     =#%%#-:.  #@@@:                  
-            *@@@=           =++*--*@@%%*#++%@@@                       
-
-    {COLORS['reset']}"""                                                                      
-    print(avatar)                                                                      
+    print_centered(f"github.com/hippie-cycling", Style.GRAY)
+    print_centered(f"Session started: {now}", Style.BLUE)
+    print_divider()
 
 def display_menu():
-    """Display the enhanced menu"""
+    """Display the menu"""
     options = [
-        (0, "Help & Documentation", "white", "Get detailed information about each cipher"),
-        (1, "Vigenere Cipher", "yellow", "Polyalphabetic substitution cipher using a keyword"),
-        (2, "Gromark Cipher", "yellow", "Numerical key-based cipher with transposition"),
-        (3, "Gronsfeld Cipher", "yellow", "Similar to Vigenere but using numbers as the key"),
-        (4, "Autoclave Cipher", "yellow", "Also known as the autokey cipher"),
-        (5, "XOR", "yellow", "Perform XOR operation"),
-        (6, "Mod ADD-SUB", "yellow", "Perform modular addition or subtraction"),
-        (7, "About", "white", "Information about this toolkit"),
-        (8, "Exit", "red", "Exit the application")
+        (0, "Help & Documentation", Style.WHITE),
+        (1, "Vigenere Cipher", Style.GREEN),
+        (2, "Gromark Cipher", Style.GREEN),
+        (3, "Gronsfeld Cipher", Style.GREEN),
+        (4, "Autoclave Cipher", Style.GREEN),
+        (5, "XOR", Style.GREEN),
+        (6, "Mod ADD-SUB", Style.GREEN),
+        (7, "About", Style.WHITE),
+        (8, "Exit", Style.RED)
     ]
     
-    menu_width = os.get_terminal_size().columns - 10
-    print(f"\n{COLORS['grey']}{'═' * menu_width}{COLORS['reset']}")
-    print(f"{EFFECTS['bold']}{COLORS['white']}Select a cipher to run:{COLORS['reset']}{EFFECTS['reset']}")
-    print(f"{COLORS['grey']}{'═' * menu_width}{COLORS['reset']}")
+    print(f"\n{Style.BOLD}{Style.WHITE}Select a cipher to run:{Style.RESET}")
+    print_divider('-', Style.GRAY)
     
-    for opt in options:
-        number, name, color, desc = opt      
-        print(f"{COLORS[color]}[{number}]{COLORS['reset']} {EFFECTS['bold']}{name}{EFFECTS['reset']}")
-        print(f"   {COLORS['grey']}{desc}{COLORS['reset']}")
+    for number, name, color in options:
+        print(f" {color}[{number}]{Style.RESET} {Style.BOLD}{name}{Style.RESET}")
     
-    print(f"{COLORS['grey']}{'═' * menu_width}{COLORS['reset']}")
+    print_divider('-', Style.GRAY)
 
 def display_help():
-    """Display help information with enhanced formatting"""
+    """Display help information"""
     help_text = f"""
-{EFFECTS['bold']}{COLORS['yellow']}Cipher Brute Force Toolkit - Help Documentation{EFFECTS['reset']}{COLORS['reset']}
+{Style.BOLD}{Style.YELLOW}CIPHER BRUTE FORCE TOOLKIT - HELP{Style.RESET}
 
-{EFFECTS['underline']}Available Ciphers:{EFFECTS['reset']}
+{Style.UNDERLINE}AVAILABLE CIPHERS:{Style.RESET}
 
-{COLORS['yellow']}Vigenere Cipher:{COLORS['reset']}
-The user can input a custom alphabet and plaintext words to be found. 
-The brute force will check every word in a large list of English words and output 
-the keys that decrypt the plaintext words and/or the keys that generate the 
-defined IoC for further analysis.
+{Style.GREEN}VIGENERE CIPHER:{Style.RESET}
+Input custom alphabet and target words. Checks every word in 
+English wordlist, outputs keys that decrypt plaintext or 
+match defined IoC.
 
-{COLORS['yellow']}Gromark Cipher:{COLORS['reset']}
-Input the ciphertext and it will brute force all words from words_alpha.text. 
-The script will output the word and key if one of the input plaintext is found 
-and/or the input words can be found in the output (even if transposed).
+{Style.GREEN}GROMARK CIPHER:{Style.RESET}
+Checks all words from wordlist against ciphertext.
+Outputs word and key if target plaintext or words are found.
 
-{COLORS['yellow']}Gronsfeld Cipher:{COLORS['reset']}
-The user can input a custom alphabet and plaintext words to be found. 
-The brute force will check every key and output the keys that decrypt the 
-plaintext words and the keys that generate the defined IoC for further analysis.
+{Style.GREEN}GRONSFELD CIPHER:{Style.RESET}
+Input custom alphabet and target words. Checks every key and
+outputs those that decrypt plaintext or match defined IoC.
 
-{COLORS['yellow']}Autoclave Cipher:{COLORS['reset']}
-The user can input a custom alphabet and plaintext words to be found. 
-The brute force will check every key and output the keys that decrypt the 
-plaintext words and the keys that generate the defined IoC for further analysis.
+{Style.GREEN}AUTOCLAVE CIPHER:{Style.RESET}
+Input custom alphabet and target words. Checks every key and
+outputs those that decrypt plaintext or match defined IoC.
 
-{COLORS['yellow']}XOR:{COLORS['reset']}
-The user can input a cipher and a key and the script will XOR both.
-If the key length is shorter than the cipher, the key will be repeated.
-The script will output the XOR result in decimal, ASCII, and hex format.
-The user can also map the result to A-Z (0-25) for further analysis.
-IoC brute force analysis is also available.
-Frequency analysis is also available.
+{Style.GREEN}XOR:{Style.RESET}
+XOR cipher and key.
+Outputs in decimal, ASCII, hex and can map to A-Z (0-25).
+Includes an IoC brute forcer with frequency analysis.
 
-{COLORS['yellow']}Mod ADD-SUB:{COLORS['reset']}
-The user can input a cipher and a key and the script will add or subtract both (modulo).
-If the key length is shorter than the cipher, the key will be repeated.
-IoC brute force analysis is also available.
-Frequency analysis is also available.
+{Style.GREEN}MOD ADD-SUB:{Style.RESET}
+Add or subtract cipher and key (modulo addition or subtraction).
+Includes an IoC brute forcer with frequency analysis.
 
-{EFFECTS['underline']}Tips & Warnings:{EFFECTS['reset']}
-• You don´t know any plaintext word? try common words such as "FROM, "THE", "LIKE", "THAT", etc.
-Note that a large quantity of outputs will be generated. So choose wisely and perform frequency
-analysis to filter potential solutions.
+{Style.UNDERLINE}TIPS:{Style.RESET}
+• Try common words like "FROM", "THE", "LIKE", "THAT"
+• Use frequency analysis to filter potential solutions
 """
     clear_screen()
     print(help_text)
-    input(f"\n{COLORS['yellow']}Press Enter to return to the main menu...{COLORS['reset']}")
+    input(f"\n{Style.YELLOW}Press Enter to return to the main menu...{Style.RESET}")
 
 def display_about():
     """Display information about the toolkit"""
     about_text = f"""
-{EFFECTS['bold']}{COLORS['cyan']}Cipher Brute Force Toolkit{EFFECTS['reset']}{COLORS['reset']}
+{Style.BOLD}{Style.CYAN}CIPHER BRUTE FORCE TOOLKIT{Style.RESET}
 
 A comprehensive toolkit designed for cryptanalysis and cipher breaking.
 This toolkit provides methods for brute forcing various classical ciphers
 including Vigenere, Gromark, Gronsfeld, Autokey, XOR, modulo based Addition
 and Subtraction.
 
-{EFFECTS['underline']}This is a WIP project and more features will be added in the future.{EFFECTS['reset']}
+{Style.UNDERLINE}This is a WIP project and more features will be added in the future.{Style.RESET}
 
-{EFFECTS['underline']}Features:{EFFECTS['reset']}
-• Customizable alphabet support
-• Word list-based attacks
-• Bruteforce using 350k English words
-• XOR decryption and brute forcing
-• Modular addition and subtraction decryption and brute forcing
+{Style.UNDERLINE}FEATURES:{Style.RESET}
+• Custom alphabet support
+• Word list attacks (350k English words)
 • Index of Coincidence (IoC) analysis
 • Frequency analysis
 
-{EFFECTS['underline']}Developer:{EFFECTS['reset']}
-{COLORS['yellow']}https://github.com/hippie-cycling{COLORS['reset']}
+{Style.UNDERLINE}DEVELOPER:{Style.RESET}
+github.com/hippie-cycling
 
-{EFFECTS['underline']}License:{EFFECTS['reset']}
-This software is provided under the MIT License.
+{Style.UNDERLINE}LICENSE:{Style.RESET}
+MIT License
 """
     clear_screen()
-    display_avatar()
     print(about_text)
-    input(f"\n{COLORS['yellow']}Press Enter to return to the main menu...{COLORS['reset']}")
+    input(f"\n{Style.GREEN}Press Enter to return to the main menu...{Style.RESET}")
 
-def run_cipher(module, name, color):
-    """Run a specific cipher module with enhanced UI"""
+def run_cipher(module_name):
+    """Run a specific cipher module"""
+    module = CIPHER_MODULES[module_name]
+    name = module_name.replace('_', ' ').upper()
+    
     if module:
         clear_screen()
+        print(f"{Style.YELLOW}Running {name} cipher...{Style.RESET}\n")
         module.run()
-        print(f"\n{COLORS[color]}[{name} cipher process completed]{COLORS['reset']}")
+        print(f"\n{Style.GREEN}[{name} process completed]{Style.RESET}")
     else:
-        fancy_box(f" ERROR: {name.upper()} MODULE NOT FOUND ", "red", width=40)
-        print(f"\n{COLORS['red']}The {name} cipher module could not be imported.{COLORS['reset']}")
-        print(f"{COLORS['yellow']}Please ensure that the module file exists and is correctly formatted.{COLORS['reset']}")
+        fancy_box(f" ERROR: {name} MODULE NOT FOUND ", Style.RED)
+        print(f"\n{Style.RED}The {name} module could not be imported.{Style.RESET}")
+        print(f"{Style.YELLOW}Check that the module file exists in the scripts directory.{Style.RESET}")
     
-    input(f"\n{COLORS['yellow']}Press Enter to return to the main menu...{COLORS['reset']}")
+    input(f"\n{Style.YELLOW}Press Enter to return to the main menu...{Style.RESET}")
 
 def main():
-    """Main function with enhanced UI"""
-    matrix_effect(1.0)
+    """Main function"""
+    retro_effect()
     clear_screen()
+    
     while True:
         clear_screen()
         display_logo()
         display_menu()
         
         try:
-            choice = input(f"\n{COLORS['yellow']}Enter your choice (0-8): {COLORS['reset']}").strip()
+            choice = input(f"\n{Style.GREEN}Enter your choice (0-8): {Style.RESET}").strip()
             
             if choice == '0':
                 display_help()
             elif choice == '1':
-                run_cipher(vigenere if vigenere_imported else None, "Vigenere", "yellow")
+                run_cipher('vigenere')
             elif choice == '2':
-                run_cipher(Gromark_transposition if gromark_imported else None, "Gromark", "yellow")
+                run_cipher('gromark')
             elif choice == '3':
-                run_cipher(Gronsfeld if gronsfeld_imported else None, "Gronsfeld", "yellow")
+                run_cipher('gronsfeld')
             elif choice == '4':
-                run_cipher(autoclave if autoclave_imported else None, "Gronsfeld", "yellow")
+                run_cipher('autoclave')
             elif choice == '5':
-                run_cipher(xor if xor_imported else None, "XOR", "yellow")
+                run_cipher('xor')
             elif choice == '6':
-                run_cipher(modular_add_sub if modular_add_sub_imported else None, "Mod ADD-SUB", "yellow")
+                run_cipher('mod_add_sub')
             elif choice == '7':
                 display_about()
             elif choice == '8':
                 clear_screen()
-                matrix_effect(1.0)
+                retro_effect()
+                print(f"\n{Style.GREEN}Goodbye!{Style.RESET}")
                 break
             else:
-                print(f"\n{COLORS['red']}Invalid choice!{COLORS['reset']} Please enter a number between 0 and 5.")
+                print(f"\n{Style.RED}Invalid choice!{Style.RESET} Please enter a number between 0 and 8.")
                 time.sleep(1.5)
         except KeyboardInterrupt:
-            print(f"\n\n{COLORS['yellow']}Operation interrupted by user.{COLORS['reset']}")
+            print(f"\n\n{Style.YELLOW}Operation interrupted.{Style.RESET}")
             time.sleep(1)
-            continue
         except Exception as e:
-            print(f"\n{COLORS['red']}An error occurred: {str(e)}{COLORS['reset']}")
+            print(f"\n{Style.RED}Error: {str(e)}{Style.RESET}")
             time.sleep(2)
 
 if __name__ == "__main__":
@@ -359,5 +270,5 @@ if __name__ == "__main__":
         main()
     except KeyboardInterrupt:
         clear_screen()
-        print(f"\n{COLORS['red']}Program terminated by user.{COLORS['reset']}")
+        print(f"\n{Style.RED}Program terminated.{Style.RESET}")
         sys.exit(0)
