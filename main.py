@@ -170,7 +170,11 @@ Includes an IoC brute forcer with frequency analysis.
 
 {Style.UNDERLINE}TIPS:{Style.RESET}
 • Try common words like "FROM", "THE", "LIKE", "THAT"
-• Use frequency analysis to filter potential solutions
+• Use the IoC range to filter potential solutions.
+• Use frequency analysis to filter potential solutions.
+• Note that if many results are found, only a few will
+be printed in console. Use the Save into file functionality
+and filter the results accordingly.
 """
     clear_screen()
     print(help_text)
