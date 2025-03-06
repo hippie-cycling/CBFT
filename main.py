@@ -3,44 +3,39 @@ import time
 import random
 import sys
 from datetime import datetime
-
-#TO-DO Substitution ciphers
-# Running key cipher
-# Chaocipher
-
 # Try to import the cipher modules
 try:
-    import vigenere
+    from scripts import vigenere
     vigenere_imported = True
 except ImportError:
     vigenere_imported = False
 
 try:
-    import Gromark_transposition
+    from scripts import Gromark_transposition
     gromark_imported = True
 except ImportError:
     gromark_imported = False
 
 try:
-    import Gronsfeld
+    from scripts import Gronsfeld
     gronsfeld_imported = True
 except ImportError:
     gronsfeld_imported = False
 
 try:
-    import xor
+    from scripts import xor
     xor_imported = True
 except ImportError:
     xor_imported = False
 
 try:
-    import modular_add_sub
+    from scripts import modular_add_sub
     modular_add_sub_imported = True
 except ImportError:
     modular_add_sub_imported = False
 
 try:
-    import autoclave
+    from scripts import autoclave
     autoclave_imported = True
 except ImportError:
     autoclave_imported = False
