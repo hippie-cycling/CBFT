@@ -11,7 +11,7 @@ GREEN = '\033[38;5;2m'
 BLUE = '\033[38;5;4m'
 
 # Hardcoded path for words_alpha.txt
-WORDLIST_PATH = r"C:\Users\daniel.navarro\Downloads\CBFT\data\words_alpha.txt"
+WORDLIST_PATH = "data\words_alpha.txt"
 
 def create_tabula_recta(alphabet):
     """Create a tabula recta based on the provided alphabet."""

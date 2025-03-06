@@ -162,7 +162,7 @@ def run():
                         {RESET}""")
     print(f"{RED}G{RESET}romark {RED}B{RESET}rute {RED}F{RESET}rocer")
     print(f"{GREY}-{RESET}" * 50)
-
+    dictionary_path = "data\words_alpha.txt"
     use_test = input(f"Use test case? ({YELLOW}Y/N{RESET}): ").upper() == 'Y'
 
     if use_test:
@@ -191,7 +191,7 @@ def run():
             required_words = ["BERLINCLOCK", "EASTNORTHEAST"]
 
         try:
-            with open('words_alpha.txt', 'r') as f:
+            with open(dictionary_path, 'r') as f:
                 words_list = [word.strip().upper() for word in f if 1 <= len(word.strip()) <= 15]
         except FileNotFoundError:
             print(f"{RED}Error: words_alpha.txt not found{RESET}")
