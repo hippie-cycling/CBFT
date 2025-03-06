@@ -2,6 +2,8 @@
 
 A comprehensive console-based toolkit designed for cryptanalysis and cipher breaking.
 
+![image](https://github.com/user-attachments/assets/54d9ef44-f7ed-4cf7-aa2c-185686f1e910)
+
 This toolkit provides methods for brute forcing various classical ciphers including:
 - Vigenere
 - Gromark
