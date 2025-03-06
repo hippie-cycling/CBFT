@@ -8,7 +8,7 @@ from datetime import datetime
 CIPHER_MODULES = {
     'vigenere': None,
     'gromark': None,
-    'gronsfeld': None,
+    'Gronsfeld': None,
     'autoclave': None,
     'xor': None,
     'mod_add_sub': None,
@@ -243,7 +243,7 @@ def main():
         display_menu()
         
         try:
-            choice = input(f"\n{Style.GREEN}Enter your choice (0-8): {Style.RESET}").strip()
+            choice = input(f"\n{Style.GREEN}Enter your choice (0-9): {Style.RESET}").strip()
             
             if choice == '0':
                 display_help()
@@ -252,7 +252,7 @@ def main():
             elif choice == '2':
                 run_cipher('gromark')
             elif choice == '3':
-                run_cipher('gronsfeld')
+                run_cipher('Gronsfeld')
             elif choice == '4':
                 run_cipher('autoclave')
             elif choice == '5':
