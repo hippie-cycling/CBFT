@@ -12,6 +12,8 @@ YELLOW = '\033[38;5;3m'
 GREY = '\033[38;5;238m'
 RESET = '\033[0m'
 
+dictionary_path = os.path.join(os.path.dirname(__file__), "data", "words_alpha.txt")
+
 @lru_cache(maxsize=None)
 def get_alphabet(alphabet_str: str):
     """Get alphabet and corresponding dictionary mapping."""
@@ -255,8 +257,6 @@ def run():
                 print(f"{RED}Invalid input, using default range.{RESET}")
                 min_ioc = 0.065
                 max_ioc = 0.07
-    
-    dictionary_path = "data\words_alpha.txt"
     
     # Run the cracking process with both methods
     phrase_results, ioc_results = crack_vigenere(
