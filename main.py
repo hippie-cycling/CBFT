@@ -208,28 +208,9 @@ def display_menu():
     print(f"{EFFECTS['bold']}{COLORS['white']}Select a cipher to run:{COLORS['reset']}{EFFECTS['reset']}")
     print(f"{COLORS['grey']}{'═' * menu_width}{COLORS['reset']}")
     
-    # Check which modules are imported successfully
-    module_status = {
-        "Vigenere": vigenere_imported,
-        "Gromark": gromark_imported,
-        "Gronsfeld": gronsfeld_imported,
-        "XOR": xor_imported,
-        "Mod ADD-SUB": modular_add_sub_imported,
-        "Autoclave": autoclave_imported
-    }
-    
     for opt in options:
-        number, name, color, desc = opt
-        status = ""
-        
-        # Add status indicator for cipher modules
-        if name.split()[0] in module_status:
-            if module_status[name.split()[0]]:
-                status = f"{COLORS['green']}[READY]{COLORS['reset']}"
-            else:
-                status = f"{COLORS['red']}[NOT FOUND]{COLORS['reset']}"
-        
-        print(f"{COLORS[color]}[{number}]{COLORS['reset']} {EFFECTS['bold']}{name}{EFFECTS['reset']} {status}")
+        number, name, color, desc = opt      
+        print(f"{COLORS[color]}[{number}]{COLORS['reset']} {EFFECTS['bold']}{name}{EFFECTS['reset']}")
         print(f"   {COLORS['grey']}{desc}{COLORS['reset']}")
     
     print(f"{COLORS['grey']}{'═' * menu_width}{COLORS['reset']}")
