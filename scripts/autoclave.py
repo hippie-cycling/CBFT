@@ -11,7 +11,7 @@ GREEN = '\033[38;5;2m'
 BLUE = '\033[38;5;4m'
 
 # Hardcoded path for words_alpha.txt
-WORDLIST_PATH = "data\words_alpha.txt"
+WORDLIST_PATH = os.path.join(os.path.dirname(__file__), "data", "words_alpha.txt")
 
 def create_tabula_recta(alphabet):
     """Create a tabula recta based on the provided alphabet."""
