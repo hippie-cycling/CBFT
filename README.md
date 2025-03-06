@@ -2,7 +2,7 @@
 
 A comprehensive console-based toolkit designed for cryptanalysis and cipher breaking.
 
-![image](https://github.com/user-attachments/assets/e466a16c-e496-489b-acd4-383f1cc861aa)
+![image](https://github.com/user-attachments/assets/a3879cb8-c873-4ef2-b257-a48b460dc714)
 
 This toolkit provides methods for brute forcing various classical ciphers including:
 - Vigenere
