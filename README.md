@@ -21,8 +21,8 @@ Features include:
 - Bruteforce using 350k English words.
 - XOR decryptor and brute forcer.
 - Modulo addition and subtraction decryptor and brute forcer.
-- IoC based analysis.
-- Frequency based analysis.
+- IoC based analysis. Range defined by the user.
+- Frequency based analysis. Sensibility defined by the user.
 
 To run the program, download the repository and launch main.py.
 
