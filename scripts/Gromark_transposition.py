@@ -243,7 +243,7 @@ def run():
             analyze_option = input(f"Run frequency analysis on best match? ({YELLOW}Y/N{RESET}): ").upper()
             if analyze_option == 'Y':
                 # Fix: Change 'plaintext' to 'decrypted' to match your results dictionary
-                utils.analyze_frequency(all_results[0]['decrypted'])
+                utils.analyze_frequency_vg(all_results[0]['decrypted'])
         
     else:
         print(f"\n{RED}NO SOLUTIONS FOUND{RESET}")

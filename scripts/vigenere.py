@@ -300,7 +300,7 @@ def run():
             # Option to run frequency analysis
             analyze_phrase = input(f"Run frequency analysis on best phrase match? ({YELLOW}Y/N{RESET}): ").upper() == 'Y'
             if analyze_phrase:
-                utils.analyze_frequency(phrase_results[0]['plaintext'])
+                utils.analyze_frequency_vg(phrase_results[0]['plaintext'])
     
     # Display IoC-based results
     if ioc_results:
@@ -338,7 +338,7 @@ def run():
             # Option to run frequency analysis
             analyze_ioc = input(f"Run frequency analysis on best IoC match? ({YELLOW}Y/N{RESET}): ").upper() == 'Y'
             if analyze_ioc:
-                utils.analyze_frequency(ioc_results[0]['plaintext'])
+                utils.analyze_frequency_vg(ioc_results[0]['plaintext'])
     
     # If no results found with either method
     if not phrase_results and not ioc_results:
