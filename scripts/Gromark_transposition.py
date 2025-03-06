@@ -12,6 +12,10 @@ RESET = '\033[0m'
 
 dictionary_path = os.path.join(os.path.dirname(__file__), "data", "words_alpha.txt")
 
+if not os.path.exists(dictionary_path):
+    print(f"{RED}Error: words_alpha.txt not found at {dictionary_path}{RESET}")
+    dictionary_path = input("Please provide the correct path to words_alpha.txt: ")
+
 def create_keyed_alphabet(keyword: str, alphabet: str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ") -> str:
     # Use the provided alphabet
     keyword = ''.join(dict.fromkeys(keyword.upper()))
@@ -164,18 +168,15 @@ def run():
                         {RESET}""")
     print(f"{RED}G{RESET}romark {RED}B{RESET}rute {RED}F{RESET}rocer")
     print(f"{GREY}-{RESET}" * 50)
-    dictionary_path = "data\words_alpha.txt"
+
+    
+
     use_test = input(f"Use test case? ({YELLOW}Y/N{RESET}): ").upper() == 'Y'
 
     if use_test:
         ciphertext = "OHRERPHTMNUQDPUYQTGQHABASQXPTHPYSIXJUFVKNGNDRRIOMAEJGZKHCBNDBIWLDGVWDDVLXCSCZS"
         words_list = ["GRONSFELD", "TESTING", "GRONSFE"]
         required_words = ["ONLYTWOTHINGS"]  # Test case uses ONLYTWO
-        expected = {
-            'keyword': "GRONSFELD",  # Added 'keyword'
-            'primer': "32941",
-            'plaintext': "onlytwothingsareinfinitetheuniverseandhumanstupidityandimnotsureabouttheformer"
-        }
 
         print(f"\n{GREY}----------------------")
         print(f"Running a test case...")
