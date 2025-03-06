@@ -256,7 +256,7 @@ def run():
                 min_ioc = 0.065
                 max_ioc = 0.07
     
-    dictionary_path = "words_alpha.txt"
+    dictionary_path = r"C:\Users\daniel.navarro\Downloads\CBFT\data\words_alpha.txt"
     
     # Run the cracking process with both methods
     phrase_results, ioc_results = crack_vigenere(
