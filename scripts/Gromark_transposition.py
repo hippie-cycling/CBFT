@@ -10,6 +10,8 @@ YELLOW = '\033[38;5;3m'
 GREY = '\033[38;5;238m'
 RESET = '\033[0m'
 
+dictionary_path = os.path.join(os.path.dirname(__file__), "data", "words_alpha.txt")
+
 def create_keyed_alphabet(keyword: str, alphabet: str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ") -> str:
     # Use the provided alphabet
     keyword = ''.join(dict.fromkeys(keyword.upper()))
