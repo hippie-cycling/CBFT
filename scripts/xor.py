@@ -12,7 +12,7 @@ GREEN = '\033[38;5;2m'
 BLUE = '\033[38;5;4m'
 
 # Hardcoded path for words_alpha.txt
-WORDLIST_PATH = "data\words_alpha.txt"
+WORDLIST_PATH = os.path.join(os.path.dirname(__file__), "data", "words_alpha.txt")
 
 def parse_input(input_text, input_format='string'):
     """Parse input based on the specified format."""
