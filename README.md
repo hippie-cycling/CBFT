@@ -2,7 +2,7 @@
 
 A comprehensive console-based toolkit designed for cryptanalysis and cipher breaking.
 
-![image](https://github.com/user-attachments/assets/2cd66f3f-f801-42b0-8029-b59b34bcc808)
+![image](https://github.com/user-attachments/assets/e466a16c-e496-489b-acd4-383f1cc861aa)
 
 This toolkit provides methods for brute forcing various classical ciphers including:
 - Vigenere
@@ -10,7 +10,8 @@ This toolkit provides methods for brute forcing various classical ciphers includ
 - Gronsfeld
 - Autoclave/Autokey
 - XOR
-- Modulo addition/subtraction.
+- Modulo addition/subtraction
+- String Matrix Generator
 
 More ciphers to be implemented, **WIP**
 
@@ -23,6 +24,7 @@ Features include:
 - Modulo addition and subtraction decryptor and brute forcer.
 - IoC based analysis. Range defined by the user.
 - Frequency based analysis. Sensibility defined by the user.
+- Generation of all possible n x m matrices.
 
 To run the program, download the repository and launch main.py.
 
