@@ -11,7 +11,8 @@ CIPHER_MODULES = {
     'gronsfeld': None,
     'autoclave': None,
     'xor': None,
-    'mod_add_sub': None
+    'mod_add_sub': None,
+    'Matrix Generator': None,
 }
 
 for module_name in CIPHER_MODULES:
@@ -123,8 +124,9 @@ def display_menu():
         (4, "Autoclave Cipher", Style.GREEN),
         (5, "XOR", Style.GREEN),
         (6, "Mod ADD-SUB", Style.GREEN),
-        (7, "About", Style.WHITE),
-        (8, "Exit", Style.RED)
+        (7,'Matrix Generator', Style.GREEN),
+        (8, "About", Style.WHITE),
+        (9, "Exit", Style.RED)
     ]
     
     print(f"\n{Style.BOLD}{Style.WHITE}Select a cipher to run:{Style.RESET}")
@@ -167,6 +169,11 @@ Includes an IoC brute forcer with frequency analysis.
 {Style.GREEN}MOD ADD-SUB:{Style.RESET}
 Add or subtract cipher and key (modulo addition or subtraction).
 Includes an IoC brute forcer with frequency analysis.
+
+{Style.GREEN}Matrix Generator:{Style.RESET}
+Given a ciphertext, it will calculate every possible n x m matrix
+and save the results from reading the columns left to right and
+viceversa.
 
 {Style.UNDERLINE}TIPS:{Style.RESET}
 • Try common words like "FROM", "THE", "LIKE", "THAT"
@@ -253,8 +260,10 @@ def main():
             elif choice == '6':
                 run_cipher('mod_add_sub')
             elif choice == '7':
-                display_about()
+                run_cipher('Matrix Generator')
             elif choice == '8':
+                display_about()
+            elif choice == '9':
                 clear_screen()
                 retro_effect()
                 print(f"\n{Style.GREEN}Goodbye!{Style.RESET}")
