@@ -2,7 +2,7 @@
 
 A comprehensive console-based toolkit designed for cryptanalysis and cipher breaking.
 
-![image](https://github.com/user-attachments/assets/10ba47bc-033f-42da-80e3-10e7de7da6fd)
+![image](https://github.com/user-attachments/assets/27209098-d9f5-44da-b79d-671123d2d418)
 
 This toolkit provides methods for brute forcing various classical ciphers including:
 - Vigenere
@@ -14,7 +14,11 @@ This toolkit provides methods for brute forcing various classical ciphers includ
 - Modulo addition/subtraction
 - String Matrix Generator
 
-More ciphers to be implemented, **WIP**
+It also provides some basic tools such as:
+- Ioc
+- Frequency Analysis
+
+More ciphers and tools to be implemented, **WIP**
 
 Features include:
 
