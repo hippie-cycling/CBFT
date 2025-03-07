@@ -13,7 +13,9 @@ CIPHER_MODULES = {
     'xor': None,
     'mod_add_sub': None,
     'Matrix Generator': None,
-    'hill': None
+    'hill': None,
+    'ioc': None,
+    'freq_analysis': None
 }
 
 for module_name in CIPHER_MODULES:
@@ -24,6 +26,12 @@ for module_name in CIPHER_MODULES:
         elif module_name == 'mod_add_sub':
             # Handle special case for modular_add_sub module name
             module = __import__(f'scripts.modular_add_sub', fromlist=['run'])
+        elif module_name == 'ioc':
+            # Handle special case for IoC module name
+            module = __import__(f'scripts.ioc', fromlist=['run'])
+        elif module_name == 'freq_analysis':
+            # Handle special case for frequency analysis module name
+            module = __import__(f'scripts.freq_analysis', fromlist=['run'])
         else:
             module = __import__(f'scripts.{module_name}', fromlist=['run'])
         CIPHER_MODULES[module_name] = module
@@ -119,6 +127,7 @@ def display_menu():
     """Display the menu"""
     options = [
         (0, "Help & Documentation", Style.WHITE),
+        (-1, "CIPHER OPTIONS", Style.CYAN),
         (1, "Vigenere Cipher", Style.GREEN),
         (2, "Gromark Cipher", Style.GREEN),
         (3, "Gronsfeld Cipher", Style.GREEN),
@@ -126,16 +135,25 @@ def display_menu():
         (5, "Hill Cipher", Style.GREEN),
         (6, "XOR", Style.GREEN),
         (7, "Mod ADD-SUB", Style.GREEN),
-        (8,'Matrix Generator', Style.GREEN),
+        (8, "Matrix Generator", Style.GREEN),
+        (-2, "CRYPTANALYSIS TOOLS", Style.CYAN),
+        (11, "Calculate IoC", Style.YELLOW),
+        (12, "Frequency Analysis", Style.YELLOW),
+        (-3, "OTHER OPTIONS", Style.CYAN),
         (9, "About", Style.WHITE),
         (10, "Exit", Style.RED)
     ]
     
-    print(f"\n{Style.BOLD}{Style.WHITE}Select a cipher to run:{Style.RESET}")
+    print(f"\n{Style.BOLD}{Style.WHITE}Select an option:{Style.RESET}")
     print_divider('-', Style.GRAY)
     
     for number, name, color in options:
-        print(f" {color}[{number}]{Style.RESET} {Style.BOLD}{name}{Style.RESET}")
+        if number < 0:  # This is a section header
+            print()
+            print(f" {color}{Style.BOLD}{name}{Style.RESET}")
+            print_divider('-', Style.GRAY)
+        else:
+            print(f" {color}[{number}]{Style.RESET} {Style.BOLD}{name}{Style.RESET}")
     
     print_divider('-', Style.GRAY)
 
@@ -181,6 +199,18 @@ Includes an IoC brute forcer with frequency analysis.
 Given a ciphertext, it will calculate every possible n x m matrix
 and save the results from reading the columns left to right and
 viceversa.
+
+{Style.UNDERLINE}CRYPTANALYSIS TOOLS:{Style.RESET}
+
+{Style.YELLOW}CALCULATE IoC:{Style.RESET}
+Calculate the Index of Coincidence for a given text.
+Useful for determining if a cipher is monoalphabetic or
+polyalphabetic.
+
+{Style.YELLOW}FREQUENCY ANALYSIS:{Style.RESET}
+Perform frequency analysis on a given text.
+Helps identify potential substitution ciphers by comparing
+letter frequencies with standard English letter frequencies.
 
 {Style.UNDERLINE}TIPS:{Style.RESET}
 • Try common words like "FROM", "THE", "LIKE", "THAT"
@@ -240,6 +270,23 @@ def run_cipher(module_name):
     
     input(f"\n{Style.YELLOW}Press Enter to return to the main menu...{Style.RESET}")
 
+def run_tool(module_name):
+    """Run a specific cryptanalysis tool module"""
+    module = CIPHER_MODULES[module_name]
+    name = module_name.replace('_', ' ').upper()
+    
+    if module:
+        clear_screen()
+        print(f"{Style.YELLOW}Running {name} tool...{Style.RESET}\n")
+        module.run()
+        print(f"\n{Style.GREEN}[{name} process completed]{Style.RESET}")
+    else:
+        fancy_box(f" ERROR: {name} MODULE NOT FOUND ", Style.RED)
+        print(f"\n{Style.RED}The {name} module could not be imported.{Style.RESET}")
+        print(f"{Style.YELLOW}Check that the module file exists in the scripts directory.{Style.RESET}")
+    
+    input(f"\n{Style.YELLOW}Press Enter to return to the main menu...{Style.RESET}")
+
 def main():
     """Main function"""
     retro_effect()
@@ -251,7 +298,7 @@ def main():
         display_menu()
         
         try:
-            choice = input(f"\n{Style.GREEN}Enter your choice (0-10): {Style.RESET}").strip()
+            choice = input(f"\n{Style.GREEN}Enter your choice (0-12): {Style.RESET}").strip()
             
             if choice == '0':
                 display_help()
@@ -278,8 +325,12 @@ def main():
                 retro_effect()
                 print(f"\n{Style.GREEN}Goodbye!{Style.RESET}")
                 break
+            elif choice == '11':
+                run_tool('ioc')
+            elif choice == '12':
+                run_tool('freq_analysis')
             else:
-                print(f"\n{Style.RED}Invalid choice!{Style.RESET} Please enter a number between 0 and 8.")
+                print(f"\n{Style.RED}Invalid choice!{Style.RESET} Please enter a number between 0 and 12.")
                 time.sleep(1.5)
         except KeyboardInterrupt:
             print(f"\n\n{Style.YELLOW}Operation interrupted.{Style.RESET}")
