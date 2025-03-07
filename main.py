@@ -13,6 +13,7 @@ CIPHER_MODULES = {
     'xor': None,
     'mod_add_sub': None,
     'Matrix Generator': None,
+    'hill': None
 }
 
 for module_name in CIPHER_MODULES:
@@ -122,11 +123,12 @@ def display_menu():
         (2, "Gromark Cipher", Style.GREEN),
         (3, "Gronsfeld Cipher", Style.GREEN),
         (4, "Autoclave Cipher", Style.GREEN),
-        (5, "XOR", Style.GREEN),
-        (6, "Mod ADD-SUB", Style.GREEN),
-        (7,'Matrix Generator', Style.GREEN),
-        (8, "About", Style.WHITE),
-        (9, "Exit", Style.RED)
+        (5, "Hill Cipher", Style.GREEN),
+        (6, "XOR", Style.GREEN),
+        (7, "Mod ADD-SUB", Style.GREEN),
+        (8,'Matrix Generator', Style.GREEN),
+        (9, "About", Style.WHITE),
+        (10, "Exit", Style.RED)
     ]
     
     print(f"\n{Style.BOLD}{Style.WHITE}Select a cipher to run:{Style.RESET}")
@@ -155,11 +157,16 @@ Outputs word and key if target plaintext or words are found.
 
 {Style.GREEN}GRONSFELD CIPHER:{Style.RESET}
 Input custom alphabet and target words. Checks every key and
-outputs those that decrypt plaintext or match defined IoC.
+outputs those that decrypt plaintext or matches defined IoC.
 
 {Style.GREEN}AUTOCLAVE CIPHER:{Style.RESET}
 Input custom alphabet and target words. Checks every key and
-outputs those that decrypt plaintext or match defined IoC.
+outputs those that decrypt plaintext or matches defined IoC.
+
+{Style.GREEN}HILL CIPHER:{Style.RESET}
+Input custom alphabet and target words. Checks every posible key
+(2x2 or 3x3 matrix) and outputs those that decrypt plaintext
+or matches defined IoC. Direct decrytion is available.
 
 {Style.GREEN}XOR:{Style.RESET}
 XOR cipher and key.
@@ -194,7 +201,7 @@ def display_about():
 
 A comprehensive toolkit designed for cryptanalysis and cipher breaking.
 This toolkit provides methods for brute forcing various classical ciphers
-including Vigenere, Gromark, Gronsfeld, Autokey, XOR, modulo based Addition
+including Vigenere, Gromark, Gronsfeld, Autokey, Hill, XOR, modulo based Addition
 and Subtraction.
 
 {Style.UNDERLINE}This is a WIP project and more features will be added in the future.{Style.RESET}
@@ -202,6 +209,7 @@ and Subtraction.
 {Style.UNDERLINE}FEATURES:{Style.RESET}
 • Custom alphabet support
 • Word list attacks (350k English words)
+• Matrix attacks for Hill cipher (2x2 and 3x3).
 • Index of Coincidence (IoC) analysis
 • Frequency analysis
 
@@ -243,7 +251,7 @@ def main():
         display_menu()
         
         try:
-            choice = input(f"\n{Style.GREEN}Enter your choice (0-9): {Style.RESET}").strip()
+            choice = input(f"\n{Style.GREEN}Enter your choice (0-10): {Style.RESET}").strip()
             
             if choice == '0':
                 display_help()
@@ -256,14 +264,16 @@ def main():
             elif choice == '4':
                 run_cipher('autoclave')
             elif choice == '5':
-                run_cipher('xor')
+                run_cipher('hill')
             elif choice == '6':
-                run_cipher('mod_add_sub')
+                run_cipher('xor')
             elif choice == '7':
-                run_cipher('Matrix Generator')
+                run_cipher('mod_add_sub')
             elif choice == '8':
-                display_about()
+                run_cipher('Matrix Generator')
             elif choice == '9':
+                display_about()
+            elif choice == '10':
                 clear_screen()
                 retro_effect()
                 print(f"\n{Style.GREEN}Goodbye!{Style.RESET}")
