@@ -166,6 +166,32 @@ def save_to_file_mod(results, filename):
         print(f"{RED}Error saving results: {e}{RESET}")
         return False
 
+def save_to_file_hill(results, filename):
+    """Save Hill cipher results to a file."""
+    try:
+        with open(filename, 'w', encoding='utf-8') as file:
+            file.write(f"Hill Cipher Brute Force Results\n")
+            file.write(f"==============================\n\n")
+            
+            for i, (word, matrix, plaintext, ioc, freq_analysis, likeness_score, convention) in enumerate(results):
+                file.write(f"Match #{i+1}:\n")
+                file.write(f"Key Word: {word}\n")
+                file.write(f"Key Matrix:\n")
+                for row in matrix:
+                    file.write(f"  {row}\n")
+                file.write(f"Vector Convention: {convention}\n")
+                file.write(f"Decrypted text: {plaintext}\n")
+                file.write(f"IoC: {ioc:.6f}\n")
+                if likeness_score != float('inf'):
+                    file.write(f"English Likeness Score: {likeness_score:.2f} (lower is better)\n")
+                if freq_analysis:
+                    file.write(f"Frequency Analysis:\n{freq_analysis}\n")
+                file.write("\n" + "-"*50 + "\n\n")
+            
+        print(f"{GREEN}Results saved to {filename}{RESET}")
+    except Exception as e:
+        print(f"{RED}Error saving to file: {e}{RESET}")
+
 def analyze_frequency(text):
     """
     Analyze character frequency in the plaintext and calculate a likeness score to English.
