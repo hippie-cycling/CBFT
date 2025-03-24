@@ -95,7 +95,8 @@ def try_decrypt_batch(args: Tuple) -> List[Dict]:
                     'keyword': keyword,
                     'primer': primer_str,
                     'running_key': running_key,
-                    'decrypted': decrypted
+                    'decrypted': decrypted,
+                    'alphabet': alphabet  # Store the alphabet used
                 })
 
         except Exception:
@@ -158,6 +159,29 @@ def can_form_word(word: str, text: str) -> bool:
             word_ptr += 1
     return word_ptr == len(word)
 
+def get_alphabets_from_user() -> List[str]:
+    """Get alphabets to test from user input"""
+    alphabets = ["ABCDEFGHIJKLMNOPQRSTUVWXYZ"]  # Default alphabet
+    
+    print(f"\n{YELLOW}Enter additional alphabets to test (one per line).{RESET}")
+    print(f"{GREY}Press Enter on an empty line when done.{RESET}")
+    print(f"{GREY}Default alphabet '{alphabets[0]}' is already included.{RESET}")
+    
+    while True:
+        alphabet_input = input(f"Additional alphabet #{len(alphabets)}: ").upper().strip()
+        if not alphabet_input:
+            break
+        
+        # Validate input - check for duplicate characters
+        unique_chars = ''.join(dict.fromkeys(alphabet_input))
+        if len(unique_chars) != len(alphabet_input):
+            print(f"{RED}Warning: Duplicate characters removed.{RESET}")
+            alphabet_input = unique_chars
+        
+        alphabets.append(alphabet_input)
+    
+    return alphabets
+
 def run():
     print(f"""{GREY} 
 ██████  ██████  ███████ 
@@ -168,8 +192,6 @@ def run():
                         {RESET}""")
     print(f"{RED}G{RESET}romark {RED}B{RESET}rute {RED}F{RESET}rocer")
     print(f"{GREY}-{RESET}" * 50)
-
-    
 
     use_test = input(f"Use test case? ({YELLOW}Y/N{RESET}): ").upper() == 'Y'
 
@@ -200,9 +222,8 @@ def run():
             print(f"{RED}Error: words_alpha.txt not found{RESET}")
             return
 
-    # --- KEYWORD ITERATION AND VALIDATION ---
-
-    alphabets_to_test = ["ABCDEFGHIJKLMNOPQRSTUVWXYZ", "KRYPTOSABCDEFGHIJLMNQUVWXZ"]
+    # Get alphabets from user
+    alphabets_to_test = get_alphabets_from_user()
     all_results = []
 
     for alphabet in alphabets_to_test:
@@ -226,6 +247,7 @@ def run():
             print(f"{GREY}-{RESET}" * 50)
             print(f"Keyword: {YELLOW}{result['keyword']}{RESET}")
             print(f"Primer: {YELLOW}{result['primer']}{RESET}")
+            print(f"Alphabet: {YELLOW}{result['alphabet']}{RESET}")  # Display alphabet used
             print(f"Decrypted: {RED}{result['decrypted']}{RESET}")
 
             if use_test:
