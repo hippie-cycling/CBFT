@@ -1,4 +1,3 @@
-from tqdm import tqdm
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import os
 from typing import List, Tuple, Dict
@@ -129,6 +128,9 @@ def parallel_process_keywords(valid_keywords: List[str], ciphertext: str, requir
     primer_batches = batch_primers(batch_size=batch_size)
 
     total_batches = len(valid_keywords) * len(primer_batches)
+    processed_batches = 0
+
+    print(f"Processing {YELLOW}{total_batches}{RESET} batches with {YELLOW}{num_processes}{RESET} processes")
 
     with ProcessPoolExecutor(max_workers=num_processes) as executor:
         futures = [
@@ -137,15 +139,21 @@ def parallel_process_keywords(valid_keywords: List[str], ciphertext: str, requir
             for batch in primer_batches
         ]
 
-        with tqdm(total=total_batches, desc="Processing batches",  colour="yellow") as pbar:
-            for future in as_completed(futures):
-                try:
-                    batch_results = future.result()
-                    all_results.extend(batch_results)
-                    pbar.update(1)
-                except Exception as e:
-                    print(f"Batch processing error: {e}")
-                    continue
+        for future in as_completed(futures):
+            try:
+                batch_results = future.result()
+                all_results.extend(batch_results)
+                processed_batches += 1
+                
+                # Print progress every 10% or on completion
+                progress_percent = (processed_batches / total_batches) * 100
+                if processed_batches % max(1, total_batches // 10) == 0 or processed_batches == total_batches:
+                    print(f"Progress: {processed_batches}/{total_batches} batches ({progress_percent:.1f}%)")
+                    
+            except Exception as e:
+                print(f"Batch processing error: {e}")
+                processed_batches += 1
+                continue
 
     return all_results
 
@@ -230,10 +238,24 @@ def run():
         print(f"\nTesting with alphabet: {RED}{alphabet}{RESET}")
 
         print(f"\n{YELLOW}Filtering keywords based on constraints...{RESET}")
-        valid_keywords = [
-            keyword for keyword in tqdm(words_list)
-            if validate_keyword(keyword, [(0, ciphertext[0:13], "ONLYTWOTHINGS") if use_test else (63, ciphertext[63:74], "BERLINCLOCK")], alphabet)  # Pass alphabet to validate_keyword
-        ]
+        
+        # Replace tqdm progress bar with simple counter
+        valid_keywords = []
+        total_words = len(words_list)
+        processed_words = 0
+        
+        print(f"Processing {YELLOW}{total_words}{RESET} potential keywords...")
+        
+        for keyword in words_list:
+            if validate_keyword(keyword, [(0, ciphertext[0:13], "ONLYTWOTHINGS") if use_test else (63, ciphertext[63:74], "BERLINCLOCK")], alphabet):
+                valid_keywords.append(keyword)
+            
+            processed_words += 1
+            
+            # Print progress every 10% or on completion
+            progress_percent = (processed_words / total_words) * 100
+            if processed_words % max(1, total_words // 10) == 0 or processed_words == total_words:
+                print(f"Keyword validation progress: {processed_words}/{total_words} ({progress_percent:.1f}%)")
 
         print(f"\nFiltered from {YELLOW}{len(words_list)}{RESET} to {RED}{len(valid_keywords)}{RESET} possible keywords")
 

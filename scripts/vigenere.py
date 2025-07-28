@@ -1,4 +1,3 @@
-from tqdm import tqdm
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from typing import List, Dict, Tuple
 import time
@@ -173,7 +172,10 @@ def crack_vigenere(ciphertext: str, alphabet_str: str, target_phrases: List[str]
         total_batches = len(word_batches)
         
         print(f"\n{YELLOW}Trying potential keys from dictionary...{RESET}")
+        print(f"Processing {YELLOW}{total_batches}{RESET} batches with {YELLOW}{num_processes}{RESET} processes")
         start_time = time.time()
+        
+        processed_batches = 0
         
         with ProcessPoolExecutor(max_workers=num_processes) as executor:
             futures = [
@@ -181,16 +183,22 @@ def crack_vigenere(ciphertext: str, alphabet_str: str, target_phrases: List[str]
                 for batch in word_batches
             ]
             
-            with tqdm(total=total_batches, desc="Processing batches", colour="yellow") as pbar:
-                for future in as_completed(futures):
-                    try:
-                        batch_phrase_results, batch_ioc_results = future.result()
-                        phrase_results.extend(batch_phrase_results)
-                        ioc_results.extend(batch_ioc_results)
-                        pbar.update(1)
-                    except Exception as e:
-                        print(f"{RED}Batch processing error: {e}{RESET}")
-                        continue
+            for future in as_completed(futures):
+                try:
+                    batch_phrase_results, batch_ioc_results = future.result()
+                    phrase_results.extend(batch_phrase_results)
+                    ioc_results.extend(batch_ioc_results)
+                    processed_batches += 1
+                    
+                    # Print progress every 10% or on completion
+                    progress_percent = (processed_batches / total_batches) * 100
+                    if processed_batches % max(1, total_batches // 10) == 0 or processed_batches == total_batches:
+                        print(f"Progress: {processed_batches}/{total_batches} batches ({progress_percent:.1f}%)")
+                        
+                except Exception as e:
+                    print(f"{RED}Batch processing error: {e}{RESET}")
+                    processed_batches += 1
+                    continue
         
         end_time = time.time()
         print(f"\n{YELLOW}Cracking complete in {end_time - start_time:.2f} seconds{RESET}")
