@@ -35,10 +35,6 @@ Features include:
 
 To run the program, download the repository and launch main.py.
 
-Some modules use the tqdm module for the progress bars.
-
-to install: pip install tqdm
-
 ## License
 
 [MIT](https://choosealicense.com/licenses/mit/)
