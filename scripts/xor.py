@@ -183,7 +183,7 @@ def run():
             input_format = 'string'
             input_data = input(f"{GREY}Enter the text: {RESET}")
         
-        key = input(f"{GREY}Enter the key: {RESET}")
+        key = input(f"{GREY}Enter the key (must be an ASCII (string) text string): {RESET}")
         
         # Parse input based on format
         try:
