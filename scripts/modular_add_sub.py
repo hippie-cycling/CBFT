@@ -20,80 +20,67 @@ def parse_input(input_text, input_format='string', custom_alphabet=None):
         if custom_alphabet:
             return [custom_alphabet.find(c.upper()) if c.upper() in custom_alphabet else -1 for c in input_text]
         else:
+            # Always parses to a 0-indexed value (A=0, B=1, ...)
             return [ord(c.upper()) - ord('A') if c.isalpha() else -1 for c in input_text]
     elif input_format == 'decimal':
         return [int(x) for x in input_text.split() if x.strip()]
     elif input_format == 'hex':
-        # Remove any non-hex characters and spaces
         clean_hex = re.sub(r'[^0-9A-Fa-f]', ' ', input_text)
-        # Split by spaces and convert each hex value
         return [int(x, 16) for x in clean_hex.split() if x.strip()]
     return []
 
 def modular_operation(message_values, key, operation='add', modulus=26, base_index=0):
     """
     Perform modular addition or subtraction of the message with the key.
-    
-    Args:
-        message_values: List of numeric values representing the message
-        key: String key to use for the operation
-        operation: 'add' for encryption, 'subtract' for decryption
-        modulus: The modulus to use (26 for standard A-Z)
-        base_index: 0 if A=0, 1 if A=1
-    
-    Returns:
-        List of numeric values after the operation
+    Note: All internal calculations are done 0-indexed (A=0).
+    The base_index is a display concern handled elsewhere.
     """
-    # Extend the key if necessary to match the message length
     if len(key) < len(message_values):
         key = key * (len(message_values) // len(key) + 1)
     key = key[:len(message_values)]
     
-    # Perform modular operation
     result = []
     for i, m_val in enumerate(message_values):
-        if m_val == -1:  # Skip non-alphabetic characters
+        if m_val == -1:
             result.append(-1)
             continue
             
-        # Get the key character value based on custom_alphabet or standard A-Z
-        if isinstance(key[i], int):  # If key is already converted to numbers
+        if isinstance(key[i], int):
             k_val = key[i]
         else:
             k_val = ord(key[i].upper()) - ord('A')
         
-        # Adjust for base index (0 or 1)
-        m_val_adj = m_val - base_index
-        k_val_adj = k_val - base_index
-        
-        # Perform the operation
+        # <<< CHANGE START: Removed incorrect base_index adjustments.
+        # All calculations are now performed on the direct 0-indexed values.
         if operation == 'add':
-            op_result = (m_val_adj + k_val_adj) % modulus
+            op_result = (m_val + k_val) % modulus
         else:  # subtract
-            op_result = (m_val_adj - k_val_adj) % modulus
+            # Added modulus to handle potential negative results correctly
+            op_result = (m_val - k_val + modulus) % modulus
             
-        # Adjust back from base index
-        result.append(op_result + base_index)
-        
+        # The result is kept 0-indexed.
+        result.append(op_result)
+        # <<< CHANGE END
+            
     return result
 
 def map_to_alphabet(mod_result, custom_alphabet=None, base_index=0):
     """Map modular result to alphabet (either custom or A-Z)."""
     result = []
     for value in mod_result:
-        if value == -1:  # Non-alphabetic character
+        if value == -1:
             result.append(' ')
         else:
-            value_adj = value - base_index  # Adjust for base index
+            # <<< CHANGE: Removed incorrect subtraction of base_index.
+            # The 'value' is already 0-indexed and ready for mapping.
             if custom_alphabet:
-                if 0 <= value_adj < len(custom_alphabet):
-                    result.append(custom_alphabet[value_adj])
+                if 0 <= value < len(custom_alphabet):
+                    result.append(custom_alphabet[value])
                 else:
                     result.append(' ')
             else:
-                result.append(chr(65 + value_adj))
+                result.append(chr(65 + value))
     return ''.join(result)
-
 
 def print_colored_output(input_data, input_format, key, mod_result, alphabet_result, operation, modulus, base_index, custom_alphabet=None, ioc=None):
     """Print the results with color formatting."""
@@ -105,13 +92,11 @@ def print_colored_output(input_data, input_format, key, mod_result, alphabet_res
     if custom_alphabet:
         print(f"{GREY}Custom alphabet:{RESET} {custom_alphabet}")
     
-    # Display raw modular result
     print(f"\n{RED}Modular Result (numeric):{RESET}")
-    print(" ".join(f"{x:3d}" if x != -1 else "   " for x in mod_result))
+    # <<< CHANGE: Added base_index here for display purposes only.
+    print(" ".join(f"{x + base_index:3d}" if x != -1 else "   " for x in mod_result))
     
-    # Display character representation
     print(f"\n{RED}Result (text):{RESET} {alphabet_result}")
-    #print(alphabet_result)
     
     if ioc is not None:
         print(f"{BLUE}IoC:{RESET} {ioc:.6f}")
