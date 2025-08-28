@@ -5,19 +5,20 @@ A comprehensive console-based toolkit designed for cryptanalysis and cipher brea
 ![image](https://github.com/user-attachments/assets/27209098-d9f5-44da-b79d-671123d2d418)
 
 This toolkit provides methods for brute forcing various classical ciphers including:
-- Vigenere
-- Gromark
-- Gronsfeld
+- Vigenere Cipher
+- Gromark Cipher
+- Gronsfeld Cipher
 - Autoclave/Autokey
-- Hill
+- Hill Cipher
 - XOR
-- Caesar Shift
+- Caesar Shift Cipher
+- Playfair Cipher
 - Modulo addition/subtraction
-- String Matrix Generator
 
 It also provides some basic tools such as:
 - Ioc
 - Frequency Analysis
+- String Matrix Generator
 
 More ciphers and tools to be implemented, **WIP**
 
