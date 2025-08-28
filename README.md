@@ -11,6 +11,7 @@ This toolkit provides methods for brute forcing various classical ciphers includ
 - Autoclave/Autokey
 - Hill
 - XOR
+- Caesar Shift
 - Modulo addition/subtraction
 - String Matrix Generator
 
