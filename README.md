@@ -5,35 +5,34 @@ A comprehensive console-based toolkit designed for cryptanalysis and cipher brea
 ![image](https://github.com/user-attachments/assets/27209098-d9f5-44da-b79d-671123d2d418)
 
 This toolkit provides methods for brute forcing various classical ciphers including:
-- Vigenere Cipher
-- Gromark Cipher
-- Gronsfeld Cipher
+- Vigenere
+- Gromark
+- Gronsfeld
 - Autoclave/Autokey
-- Hill Cipher
+- Hill
+- Playfair
 - XOR
-- Caesar Shift Cipher
-- Playfair Cipher
 - Modulo addition/subtraction
 
 It also provides some basic tools such as:
 - Ioc
 - Frequency Analysis
-- String Matrix Generator
+- String Matrix Generator (outputs all possible n x m matrices)
 
 More ciphers and tools to be implemented, **WIP**
 
-Features include:
+## Features
 
 - Customizable alphabet support.
 - Known Plaintext list-based attack.
 - Bruteforce using 350k English words.
-- Bruteforce (Hill) using all possible 2x2 or 3x3 matrix keys.
-- XOR decryptor and brute forcer.
-- Modulo addition and subtraction decryptor and brute forcer.
+- Playfair dictionary attack with bigram frequency fitness scoring.
+- Playfair cracking via a Memetic Algorithm (evolutionary search) to find the best key.
+- Bruteforce (for Hill) using all possible 2x2 or 3x3 matrix keys.
 - IoC based analysis. Range defined by the user.
 - Frequency based analysis. Sensibility defined by the user.
 - Generation of all possible n x m matrices.
-- Saving results to files.
+- Saving results to files for further analysis.
 
 To run the program, download the repository and launch main.py.
 
