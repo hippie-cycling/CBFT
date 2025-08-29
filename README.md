@@ -1,6 +1,6 @@
 # CBFT [Cipher Brute Force Toolkit]
 
-A comprehensive console-based toolkit designed for cryptanalysis and cipher breaking.
+A comprehensive console-based (TUI) toolkit designed for cryptanalysis and cipher breaking.
 
 ![image](https://github.com/user-attachments/assets/27209098-d9f5-44da-b79d-671123d2d418)
 
