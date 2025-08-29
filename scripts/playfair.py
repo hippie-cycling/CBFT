@@ -3,7 +3,9 @@ from typing import List, Dict, Tuple
 import time
 from functools import lru_cache
 import os
-import math # NEW: Imported for log function in fitness score
+import math 
+import random # NEW: For Memetic Algorithm
+import string # NEW: For Memetic Algorithm
 
 # This assumes you have a utils.py file with calculate_ioc and save_results_to_file
 # If not, you'll need to implement or remove those calls.
@@ -34,7 +36,7 @@ class DummyUtils:
                 if 'ioc' in result:
                     f.write(f"IoC: {result['ioc']:.6f}\n")
                 if 'score' in result:
-                    f.write(f"Fitness Score: {result['score']:.2f}\n") # NEW: Save score
+                    f.write(f"Fitness Score: {result['score']:.2f}\n")
                 if include_phrases and 'matched_phrases' in result:
                     f.write(f"Matched Phrases: {', '.join(result['matched_phrases'])}\n")
                 f.write(f"Plaintext: {result['plaintext']}\n")
@@ -75,11 +77,10 @@ GREEN = '\033[38;5;2m'
 # Default Playfair alphabet (I and J are treated as the same letter)
 PLAYFAIR_ALPHABET = "ABCDEFGHIKLMNOPQRSTUVWXYZ"
 dictionary_path = os.path.join(os.path.dirname(__file__), "data", "words_alpha.txt")
-# NEW: Path for our bigram frequency file
 bigram_freq_path = os.path.join(os.path.dirname(__file__), "data", "english_bigrams.txt")
 
 
-# --- NEW FUNCTIONS FOR BIGRAM FREQUENCY ATTACK ---
+# --- FUNCTIONS FOR BIGRAM FREQUENCY ATTACK ---
 
 @lru_cache(maxsize=None)
 def load_bigram_frequencies(file_path: str) -> Dict[str, float]:
@@ -150,7 +151,7 @@ def process_batch_frequency(args: Tuple) -> List[Dict]:
     return results
 
 def crack_playfair_by_frequency(ciphertext: str, dictionary_path: str, bigram_path: str) -> List[Dict]:
-    """Attempts to crack Playfair using bigram frequency analysis."""
+    """Attempts to crack Playfair using bigram frequency analysis on a dictionary."""
     print(f"\n{YELLOW}Loading English bigram frequencies...{RESET}")
     expected_freqs = load_bigram_frequencies(bigram_path)
     if not expected_freqs:
@@ -167,7 +168,7 @@ def crack_playfair_by_frequency(ciphertext: str, dictionary_path: str, bigram_pa
     num_processes = max(1, os.cpu_count() - 1 if os.cpu_count() else 1)
     total_batches = len(word_batches)
     
-    print(f"\n{YELLOW}Starting bigram frequency attack...{RESET}")
+    print(f"\n{YELLOW}Starting dictionary attack with bigram fitness scoring...{RESET}")
     print(f"Processing {YELLOW}{total_batches}{RESET} batches with {YELLOW}{num_processes}{RESET} processes")
     start_time = time.time()
     
@@ -202,8 +203,111 @@ def crack_playfair_by_frequency(ciphertext: str, dictionary_path: str, bigram_pa
     print(f"Found {RED}{len(all_results)}{RESET} potential solutions, sorted by fitness score.")
     return all_results
 
-# --- END OF NEW FUNCTIONS ---
+# --- MEMETIC ALGORITHM FUNCTIONS (NEW) ---
 
+def generate_random_key() -> str:
+    """Generates a random key by shuffling the Playfair alphabet."""
+    key_list = list(PLAYFAIR_ALPHABET)
+    random.shuffle(key_list)
+    return "".join(key_list)
+
+def crossover(parent1: str, parent2: str) -> str:
+    """Performs crossover between two parent keys to create a child."""
+    # This is a simple order crossover (OX1)
+    child = [''] * 25
+    
+    # Select a random slice from parent1
+    start, end = sorted(random.sample(range(25), 2))
+    
+    # Copy the slice from parent1 to the child
+    p1_slice = parent1[start:end+1]
+    child[start:end+1] = p1_slice
+    
+    # Fill the remaining spots with characters from parent2
+    p2_chars = [char for char in parent2 if char not in p1_slice]
+    
+    child_idx = 0
+    for i in range(25):
+        if child[i] == '':
+            child[i] = p2_chars[child_idx]
+            child_idx += 1
+            
+    return "".join(child)
+
+def mutate(key: str, mutation_rate: float) -> str:
+    """Mutates a key by swapping two characters."""
+    key_list = list(key)
+    if random.random() < mutation_rate:
+        idx1, idx2 = random.sample(range(25), 2)
+        key_list[idx1], key_list[idx2] = key_list[idx2], key_list[idx1]
+    return "".join(key_list)
+
+def crack_playfair_memetic(ciphertext: str, bigram_path: str, pop_size: int, generations: int, mutation_rate: float) -> List[Dict]:
+    """Attempts to crack Playfair using a Memetic Algorithm."""
+    print(f"\n{YELLOW}Loading English bigram frequencies...{RESET}")
+    expected_freqs = load_bigram_frequencies(bigram_path)
+    if not expected_freqs:
+        return []
+    
+    print(f"\n{YELLOW}Starting Memetic Algorithm Attack...{RESET}")
+    print(f"Population Size: {YELLOW}{pop_size}{RESET}, Generations: {YELLOW}{generations}{RESET}, Mutation Rate: {YELLOW}{mutation_rate}{RESET}")
+    
+    # 1. Initialization
+    population = [generate_random_key() for _ in range(pop_size)]
+    
+    best_key_overall = ""
+    best_score_overall = float('inf')
+    
+    start_time = time.time()
+
+    # 2. Main evolutionary loop
+    for gen in range(generations):
+        # 3. Fitness Evaluation
+        scores = []
+        for key in population:
+            plaintext = decrypt_playfair(ciphertext, key)
+            score = calculate_fitness_score(plaintext, expected_freqs)
+            scores.append((score, key))
+        
+        scores.sort(key=lambda x: x[0]) # Sort by score, lower is better
+        
+        # Update best solution found so far
+        if scores[0][0] < best_score_overall:
+            best_score_overall = scores[0][0]
+            best_key_overall = scores[0][1]
+            
+            elapsed = time.time() - start_time
+            print(f"Gen {gen+1}/{generations} | Best Score: {GREEN}{best_score_overall:.2f}{RESET} | Key: {best_key_overall[:15]}... | Time: {elapsed:.1f}s")
+
+        # 4. Selection (Elitism)
+        # Keep the top 20% of the population (the elites)
+        elite_count = max(2, int(pop_size * 0.2))
+        elites = [key for score, key in scores[:elite_count]]
+        
+        next_generation = elites
+        
+        # 5. Crossover and Mutation
+        while len(next_generation) < pop_size:
+            parent1, parent2 = random.choices(elites, k=2) # Select parents from the elite group
+            child = crossover(parent1, parent2)
+            child = mutate(child, mutation_rate)
+            next_generation.append(child)
+            
+        population = next_generation
+
+    end_time = time.time()
+    print(f"\n{YELLOW}Algorithm finished in {end_time - start_time:.2f} seconds.{RESET}")
+    
+    final_plaintext = decrypt_playfair(ciphertext, best_key_overall)
+    
+    return [{
+        'key': best_key_overall,
+        'plaintext': final_plaintext,
+        'score': best_score_overall
+    }]
+
+
+# --- CORE PLAYFAIR AND UTILITY FUNCTIONS ---
 
 @lru_cache(maxsize=None)
 def create_playfair_matrix(key: str) -> List[List[str]]:
@@ -349,7 +453,7 @@ def highlight_match(text: str, phrases: List[str]) -> str:
                 start_index = found_pos + 1 # Continue search after this match
             else:
                 break
-                 
+                
     return display_text
 
 def process_batch(args: Tuple) -> Tuple[List[Dict], List[Dict]]:
@@ -497,20 +601,18 @@ def run_direct_decrypt():
 
 def run():
     print(f"""{GREY} 
-Playfair Cipher{RESET}""")
-    print(f"{RED}P{RESET}layfair {RED}B{RESET}rute {RED}F{RESET}orcer & Decryptor")
+    Playfair Cipher{RESET}""")
     print(f"{GREY}-{RESET}" * 50)
     
-    # MODIFIED: Added option 3
-    mode = input(f"Choose a mode: ({YELLOW}1{RESET} = Brute Force w/ Crib, {YELLOW}2{RESET} = Direct Decrypt, {YELLOW}3{RESET} = Bigram Frequency Attack): ")
+    # MODIFIED: Added option 4
+    mode = input(f"Choose a mode: ({YELLOW}1{RESET} = Brute Force w/ Crib, {YELLOW}2{RESET} = Direct Decrypt, {YELLOW}3{RESET} = Dictionary Attack (Bigram Fitness), {YELLOW}4{RESET} = Memetic Algorithm Attack): ")
     
     if mode == '2':
         run_direct_decrypt()
         return
     
-    # NEW: Logic for mode 3
     if mode == '3':
-        print(f"\n{YELLOW}--- Bigram Frequency Attack ---{RESET}")
+        print(f"\n{YELLOW}--- Dictionary Attack (Bigram Fitness) ---{RESET}")
         ciphertext = input("Enter ciphertext: ").upper()
         if not ciphertext:
             print(f"{RED}Ciphertext cannot be empty.{RESET}")
@@ -535,6 +637,41 @@ Playfair Cipher{RESET}""")
                 utils.save_results_to_file(results, f"{filename}.txt")
         else:
             print(f"\n{RED}NO SOLUTIONS FOUND.{RESET}")
+        return
+
+    # NEW: Logic for mode 4
+    if mode == '4':
+        print(f"\n{YELLOW}--- Memetic Algorithm Attack ---{RESET}")
+        ciphertext = input("Enter ciphertext: ").upper()
+        if not ciphertext:
+            print(f"{RED}Ciphertext cannot be empty.{RESET}")
+            return
+        
+        try:
+            pop_size = int(input(f"Enter population size (e.g., 100): ") or "100")
+            generations = int(input(f"Enter number of generations (e.g., 200): ") or "200")
+            mutation_rate = float(input(f"Enter mutation rate (e.g., 0.2): ") or "0.2")
+        except ValueError:
+            print(f"{RED}Invalid input. Using default parameters.{RESET}")
+            pop_size, generations, mutation_rate = 100, 200, 0.2
+
+        results = crack_playfair_memetic(ciphertext, bigram_freq_path, pop_size, generations, mutation_rate)
+        
+        if results:
+            print(f"\n{YELLOW}BEST SOLUTION FOUND{RESET}")
+            print(f"{GREY}-{RESET}" * 50)
+            result = results[0]
+            print(f"Key: {YELLOW}{result['key']}{RESET}")
+            print(f"Final Fitness Score: {YELLOW}{result['score']:.2f}{RESET}")
+            print(f"Plaintext: {result['plaintext']}")
+            print(f"{GREY}-{RESET}" * 50)
+
+            save_results = input(f"\nSave best result to file? ({YELLOW}Y/N{RESET}): ").upper() == 'Y'
+            if save_results:
+                filename = input("Enter filename for result: ") or "playfair_memetic_result"
+                utils.save_results_to_file(results, f"{filename}.txt")
+        else:
+            print(f"\n{RED}ALGORITHM FAILED TO COMPLETE.{RESET}")
         return
 
 
@@ -655,7 +792,6 @@ if __name__ == "__main__":
         with open(dictionary_path, 'w') as f:
             f.write("PLAYFAIR\nKEYWORD\nCIPHER\nSECRET\n")
             
-    # NEW: Create dummy bigram file if it doesn't exist
     if not os.path.exists(bigram_freq_path):
         print(f"Creating dummy bigram frequency file at {bigram_freq_path}")
         with open(bigram_freq_path, 'w') as f:
