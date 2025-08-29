@@ -25,13 +25,11 @@ More ciphers and tools to be implemented, **WIP**
 
 - Customizable alphabet support.
 - Known Plaintext list-based attack.
-- Bruteforce using 350k English words.
-- Playfair dictionary attack with bigram frequency fitness scoring.
+- Bruteforce using dictionary attack (400k English-latin words).
+- Bigram frequency fitness scoring
 - Playfair cracking via a Memetic Algorithm (evolutionary search) to find the best key.
 - Bruteforce (for Hill) using all possible 2x2 or 3x3 matrix keys.
 - IoC based analysis. Range defined by the user.
-- Frequency based analysis. Sensibility defined by the user.
-- Generation of all possible n x m matrices.
 - Saving results to files for further analysis.
 
 To run the program, download the repository and launch main.py.
