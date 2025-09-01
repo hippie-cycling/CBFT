@@ -392,7 +392,7 @@ def run():
 
         results = brute_force_hill_all_keys(
             ciphertext, alphabet, matrix_size, min_ioc, max_ioc, 
-            known_fragments, max_results, True, expected_freqs
+            known_fragments, max_results, expected_freqs
         )
 
         if results:
