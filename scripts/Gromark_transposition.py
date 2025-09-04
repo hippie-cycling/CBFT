@@ -147,7 +147,8 @@ def batch_primers(start: int = 10000, end: int = 99999, batch_size: int = 1000) 
     return [all_primers[i:i + batch_size] for i in range(0, len(all_primers), batch_size)]
 
 def generate_running_key(primer: str, length: int) -> str:
-    key = np.array([int(d) for d in primer], dtype=np.int8)
+    key = np.array([int(d) for d in primer if d.isdigit()], dtype=np.int8)
+    if len(key) != 5: return "" # Primer must be 5 digits
     result = np.zeros(length, dtype=np.int8)
     result[:len(key)] = key
     for i in range(len(key), length):
@@ -191,12 +192,10 @@ def try_decrypt_batch(args: Tuple) -> List[Dict]:
 
             match_type = None
             if not required_words:
-                continue # Skip if no words are provided to filter against
+                continue
 
-            # Prioritize a full substring match (stronger indicator)
             if all(word in decrypted_upper for word in required_words):
                 match_type = 'substring'
-            # If not a substring, check for a "dragged" match
             elif all(can_form_word(word, decrypted) for word in required_words):
                 match_type = 'dragged'
 
@@ -323,7 +322,6 @@ def process_and_display_results(all_results, required_words):
     for result in all_results[:20]:
         in_range = min_ioc <= result['ioc'] <= max_ioc
         range_marker = GREEN + " (In Range)" + RESET if in_range else ""
-
         match_type = result.get('match_type')
         if match_type == 'substring':
             highlighted_decrypted = highlight_phrases(result['decrypted'], required_words, RED)
@@ -337,7 +335,6 @@ def process_and_display_results(all_results, required_words):
         else:
             highlighted_decrypted = result['decrypted']
             match_marker = ""
-
 
         print(f"{GREY}-{RESET}" * 50)
         print(f"Keyword: {YELLOW}{result['keyword']}{RESET} {match_marker}")
@@ -358,9 +355,75 @@ def process_and_display_results(all_results, required_words):
 
 # --- MODES OF OPERATION ---
 
-def run_dictionary_attack(expected_freqs: Dict):
-    print(f"\n{GREEN}--- Mode 1: Dictionary Attack ---{RESET}")
+def run_test_case():
+    """ Runs a known-answer test case to verify the decryption logic. """
+    print(f"\n{GREEN}--- Mode 1: Run Known-Answer Test Case ---{RESET}")
+    print(f"{GREY}This test uses a known solution to a Zodiac Killer cipher to verify the tool's core logic.{RESET}")
 
+    ciphertext = "OHRERPHTMNUQDPUYQTGQHABASQXPTHPYSIXJUFVKNGNDRRIOMAEJGZKHCBNDBIWLDGVWDDVLXCSCZS"
+    keyword = "GRONSFELD"
+    primer = "32941"
+    alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    known_words = ["ONLYTWOTHINGS", "THEUNIVERSE", "HUMANSTUPIDITY", "ABOUTTHEUNIVERSE"]
+
+    print("\n--- Test Parameters ---")
+    print(f"Ciphertext: {ciphertext}")
+    print(f"Keyword:    {YELLOW}{keyword}{RESET}")
+    print(f"Primer:     {YELLOW}{primer}{RESET}")
+    print(f"Alphabet:   {alphabet}")
+    print("-" * 23)
+
+    try:
+        mixed_alphabet = create_keyed_alphabet(keyword, alphabet)
+        running_key = generate_running_key(primer, len(ciphertext))
+        if not running_key:
+            print(f"{RED}Invalid primer.{RESET}")
+            return
+        decrypted_text = decrypt_gromark(ciphertext, mixed_alphabet, running_key, alphabet)
+        highlighted_decrypted = highlight_phrases(decrypted_text, known_words, RED)
+        ioc = calculate_ioc(decrypted_text)
+
+        print(f"\n{GREEN}Decryption Successful:{RESET}")
+        print(highlighted_decrypted)
+        print(f"\nIoC of result: {YELLOW}{ioc:.4f}{RESET}")
+
+    except Exception as e:
+        print(f"{RED}An error occurred during the test case decryption: {e}{RESET}")
+
+def run_direct_decryption():
+    print(f"\n{GREEN}--- Mode 2: Direct Decryption ---{RESET}")
+    ciphertext = input("Enter ciphertext: ").upper()
+    keyword = input("Enter keyword: ").upper()
+    primer = input("Enter primer (5-digit number): ")
+    alphabet = input("Enter alphabet (default: ABCDEFGHIJKLMNOPQRSTUVWXYZ): ").upper() or "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    highlight_input = input("Enter words to highlight (comma-separated, optional): ").upper()
+    words_to_highlight = [word.strip() for word in highlight_input.split(",")] if highlight_input else []
+
+    if not primer.isdigit() or len(primer) != 5:
+        print(f"{RED}Invalid primer. Must be a 5-digit number.{RESET}")
+        return
+
+    print("\n--- Decrypting ---")
+    try:
+        mixed_alphabet = create_keyed_alphabet(keyword, alphabet)
+        running_key = generate_running_key(primer, len(ciphertext))
+        decrypted_text = decrypt_gromark(ciphertext, mixed_alphabet, running_key, alphabet)
+        highlighted_decrypted = highlight_phrases(decrypted_text, words_to_highlight, RED)
+
+        print(f"Keyword: {YELLOW}{keyword}{RESET}")
+        print(f"Primer: {YELLOW}{primer}{RESET}")
+        print(f"Keyed Alphabet: {GREY}{mixed_alphabet}{RESET}")
+        print(f"Running Key: {GREY}{running_key[:50]}...{RESET}")
+        print(f"Decrypted Text: {highlighted_decrypted}")
+
+        ioc = calculate_ioc(decrypted_text)
+        print(f"IoC of result: {YELLOW}{ioc:.4f}{RESET}")
+
+    except Exception as e:
+        print(f"{RED}An error occurred during decryption: {e}{RESET}")
+
+def run_dictionary_attack(expected_freqs: Dict):
+    print(f"\n{GREEN}--- Mode 3: Dictionary Attack ---{RESET}")
     ciphertext = input("Enter ciphertext: ").upper()
     required_words_input = input("Enter known plaintext words to filter/highlight (comma-separated, optional): ").upper()
     required_words = [word.strip() for word in required_words_input.split(",")] if required_words_input else []
@@ -386,11 +449,9 @@ def run_dictionary_attack(expected_freqs: Dict):
 
     alphabets_to_test = get_alphabets_from_user()
     all_results = []
-
     for alphabet in alphabets_to_test:
         print(f"\nTesting with alphabet: {RED}{alphabet}{RESET}")
         print(f"\n{YELLOW}Filtering keywords...{RESET}")
-
         valid_keywords = []
         if known_segments:
             total_words = len(words_list)
@@ -405,58 +466,45 @@ def run_dictionary_attack(expected_freqs: Dict):
         else:
             print(f"{GREY}No known segments provided. Using full dictionary of {len(words_list):,} words.{RESET}")
             valid_keywords = words_list
-
         if valid_keywords:
             results = parallel_process_keywords(valid_keywords, ciphertext, required_words, alphabet, expected_freqs)
             all_results.extend(results)
-
     process_and_display_results(all_results, required_words)
 
 def run_key_length_bruteforce(expected_freqs: Dict):
-    print(f"\n{GREEN}--- Mode 2: Brute-Force by Key Length ---{RESET}")
-
+    print(f"\n{GREEN}--- Mode 4: Brute-Force by Key Length ---{RESET}")
     try:
         key_length = int(input(f"Enter key length to brute-force (e.g., 4 or 5): "))
-        if key_length <= 0:
-            raise ValueError
+        if key_length <= 0: raise ValueError
     except ValueError:
         print(f"{RED}Invalid key length. Please enter a positive integer.{RESET}")
         return
-
     alphabet_for_key = input(f"Enter character set for the key (default: ABCDEFGHIJKLMNOPQRSTUVWXYZ): ").upper() or "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-
     total_keys = len(alphabet_for_key) ** key_length
     print(f"{YELLOW}This will generate {total_keys:,} unique keywords.{RESET}")
     if key_length > 5:
-        confirm = input(f"{RED}WARNING: This is a very large number and may take an extremely long time. Proceed? (Y/N): {RESET}").upper()
-        if confirm != 'Y':
+        if input(f"{RED}WARNING: This is a very large number. Proceed? (Y/N): {RESET}").upper() != 'Y':
             return
-
     ciphertext = input("Enter ciphertext: ").upper()
     required_words_input = input("Enter known plaintext words to filter/highlight (comma-separated): ").upper()
     required_words = [word.strip() for word in required_words_input.split(",")] if required_words_input else []
-
     alphabets_to_test = get_alphabets_from_user()
     all_results = []
-
     start_time = time.time()
     print(f"\n{YELLOW}Generating keywords of length {key_length}...{RESET}")
     keywords_to_test = [''.join(p) for p in itertools.product(alphabet_for_key, repeat=key_length)]
     print(f"Generated {len(keywords_to_test):,} keywords in {time.time() - start_time:.2f} seconds.")
-
     for alphabet in alphabets_to_test:
         print(f"\nTesting with alphabet: {RED}{alphabet}{RESET}")
         results = parallel_process_keywords(keywords_to_test, ciphertext, required_words, alphabet, expected_freqs)
         all_results.extend(results)
-
     process_and_display_results(all_results, required_words)
 
-# --- HILL CLIMBING IMPLEMENTATION ---
+# --- HEURISTIC SEARCH IMPLEMENTATIONS ---
 
 def get_neighbors(keyword: str, primer_str: str, alphabet_for_key: str, num_neighbors: int = 10) -> List[Tuple[str, str]]:
     neighbors = []
     primer_int = int(primer_str)
-
     for _ in range(num_neighbors):
         if random.random() < 0.7:
             pos = random.randint(0, len(keyword) - 1)
@@ -467,75 +515,57 @@ def get_neighbors(keyword: str, primer_str: str, alphabet_for_key: str, num_neig
         else:
             new_primer = (primer_int + random.randint(-100, 100)) % 100000
             if new_primer < 10000: new_primer += 10000
-            neighbors.append((keyword, str(new_primer)))
-
+            neighbors.append((keyword, str(new_primer).zfill(5)))
     return neighbors
 
 def run_hill_climbing_attack(expected_freqs: Dict):
-    print(f"\n{GREEN}--- Mode 3: Hill Climbing Attack ---{RESET}")
-
+    print(f"\n{GREEN}--- Mode 5: Hill Climbing Attack ---{RESET}")
     if not expected_freqs:
-        print(f"{RED}Cannot run Hill Climbing without bigram frequencies for scoring.{RESET}")
+        print(f"{RED}Cannot run without bigram frequencies for scoring.{RESET}")
         return
-
     ciphertext = input("Enter ciphertext: ").upper()
     try:
         key_length = int(input(f"Enter the length of the keyword to search for: "))
         num_restarts = int(input(f"Enter number of random restarts (e.g., 50): ") or "50")
         max_iterations = int(input(f"Enter max iterations per climb (e.g., 1000): ") or "1000")
-        if key_length <= 0 or num_restarts <= 0 or max_iterations <= 0:
-            raise ValueError
+        if key_length <= 0 or num_restarts <= 0 or max_iterations <= 0: raise ValueError
     except ValueError:
         print(f"{RED}Invalid input. Please enter positive integers.{RESET}")
         return
 
     print(f"\n{YELLOW}Define the alphabets for the search:{RESET}")
-    alphabet_for_cipher = input(f"  Enter the cipher's alphabet (default: ABCDEFGHIJKLMNOPQRSTUVWXYZ): ").upper().strip() or "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    alphabet_for_key = input(f"  Enter the keyword's character set (default: Same as cipher alphabet): ").upper().strip() or alphabet_for_cipher
+    alphabet_for_cipher = input(f"  Enter the cipher's alphabet (default: ABC...): ").upper().strip() or "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    alphabet_for_key = input(f"  Enter the keyword's character set (default: Same): ").upper().strip() or alphabet_for_cipher
     print("-" * 20)
-
-    required_words_input = input("Enter known plaintext words (comma-separated, for highlighting): ").upper()
+    required_words_input = input("Enter known plaintext words for final highlighting (comma-separated): ").upper()
     required_words = [word.strip() for word in required_words_input.split(",")] if required_words_input else []
-
-    best_overall_solution = None
-    best_overall_score = float('inf')
+    best_overall_solution, best_overall_score = None, float('inf')
 
     for r in range(num_restarts):
         current_keyword = ''.join(random.choice(alphabet_for_key) for _ in range(key_length))
-        current_primer = str(random.randint(10000, 99999))
-
+        current_primer = str(random.randint(10000, 99999)).zfill(5)
         mixed_alphabet = create_keyed_alphabet(current_keyword, alphabet_for_cipher)
         running_key = generate_running_key(current_primer, len(ciphertext))
         decrypted = decrypt_gromark(ciphertext, mixed_alphabet, running_key, alphabet_for_cipher)
         current_best_score = calculate_bigram_score(decrypted, expected_freqs)
-
         for i in range(max_iterations):
             neighbors = get_neighbors(current_keyword, current_primer, alphabet_for_key)
-            best_neighbor_solution = None
-            best_neighbor_score = current_best_score
-
+            best_neighbor_solution, best_neighbor_score = None, current_best_score
             for neighbor_keyword, neighbor_primer in neighbors:
                 mixed_alphabet = create_keyed_alphabet(neighbor_keyword, alphabet_for_cipher)
                 running_key = generate_running_key(neighbor_primer, len(ciphertext))
                 decrypted = decrypt_gromark(ciphertext, mixed_alphabet, running_key, alphabet_for_cipher)
                 score = calculate_bigram_score(decrypted, expected_freqs)
-
                 if score < best_neighbor_score:
-                    best_neighbor_score = score
-                    best_neighbor_solution = (neighbor_keyword, neighbor_primer)
-
+                    best_neighbor_score, best_neighbor_solution = score, (neighbor_keyword, neighbor_primer)
             if best_neighbor_solution:
                 current_keyword, current_primer = best_neighbor_solution
                 current_best_score = best_neighbor_score
-            else:
-                break
-
-            print(f"Restart {r+1}/{num_restarts} | Iter {i+1}/{max_iterations} | Current Best Score: {current_best_score:.2f} | Key: {current_keyword}", end='\r')
-
+            else: break
+            print(f"Restart {r+1}/{num_restarts} | Iter {i+1}/{max_iterations} | Score: {current_best_score:.2f} | Key: {current_keyword}", end='\r')
         if current_best_score < best_overall_score:
-            best_overall_score = current_best_score
-            best_overall_solution = (current_keyword, current_primer)
-            print("\n" + f"{GREEN}New best solution found! Score: {best_overall_score:.2f}, Keyword: {best_overall_solution[0]}, Primer: {best_overall_solution[1]}{RESET}")
+            best_overall_score, best_overall_solution = current_best_score, (current_keyword, current_primer)
+            print("\n" + f"{GREEN}New best! Score: {best_overall_score:.2f}, Keyword: {best_overall_solution[0]}, Primer: {best_overall_solution[1]}{RESET}")
 
     print("\n\n--- Hill Climbing Search Complete ---")
     if best_overall_solution:
@@ -544,118 +574,202 @@ def run_hill_climbing_attack(expected_freqs: Dict):
         print(f"  Keyword: {YELLOW}{keyword}{RESET}")
         print(f"  Primer:  {YELLOW}{primer}{RESET}")
         print(f"  Bigram Score: {YELLOW}{best_overall_score:.2f}{RESET}")
-
         mixed_alphabet = create_keyed_alphabet(keyword, alphabet_for_cipher)
         running_key = generate_running_key(primer, len(ciphertext))
         decrypted = decrypt_gromark(ciphertext, mixed_alphabet, running_key, alphabet_for_cipher)
         highlighted_decrypted = highlight_phrases(decrypted, required_words)
-
         print(f"  Decrypted Text: {highlighted_decrypted}")
         utils.analyze_frequency_vg(decrypted)
     else:
         print(f"{RED}No solution found that improved upon random noise.{RESET}")
 
-def run_direct_decryption():
-    print(f"\n{GREEN}--- Mode 4: Direct Decryption ---{RESET}")
+def run_simulated_annealing_attack(expected_freqs: Dict):
+    print(f"\n{GREEN}--- Mode 6: Simulated Annealing Attack ---{RESET}")
+    if not expected_freqs:
+        print(f"{RED}Cannot run without bigram frequencies for scoring.{RESET}")
+        return
     ciphertext = input("Enter ciphertext: ").upper()
-    keyword = input("Enter keyword: ").upper()
-    primer = input("Enter primer (5-digit number): ")
-    alphabet = input("Enter alphabet (default: ABCDEFGHIJKLMNOPQRSTUVWXYZ): ").upper() or "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    highlight_input = input("Enter words to highlight (comma-separated, optional): ").upper()
-    words_to_highlight = [word.strip() for word in highlight_input.split(",")] if highlight_input else []
-
-
-    if not primer.isdigit() or len(primer) != 5:
-        print(f"{RED}Invalid primer. Must be a 5-digit number.{RESET}")
+    try:
+        key_length = int(input(f"Enter the length of the keyword to search for: "))
+        num_restarts = int(input(f"Enter number of random restarts (e.g., 10): ") or "10")
+        if key_length <= 0 or num_restarts <= 0: raise ValueError
+    except ValueError:
+        print(f"{RED}Invalid input. Please enter positive integers.{RESET}")
         return
 
-    print("\n--- Decrypting ---")
-    try:
-        mixed_alphabet = create_keyed_alphabet(keyword, alphabet)
+    print(f"\n{YELLOW}Define the alphabets for the search:{RESET}")
+    alphabet_for_cipher = input(f"  Enter the cipher's alphabet (default: ABC...): ").upper().strip() or "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    alphabet_for_key = input(f"  Enter the keyword's character set (default: Same): ").upper().strip() or alphabet_for_cipher
+    print("-" * 20)
+    required_words_input = input("Enter known plaintext words for final highlighting (comma-separated): ").upper()
+    required_words = [word.strip() for word in required_words_input.split(",")] if required_words_input else []
+    best_overall_solution, best_overall_score = None, float('inf')
+
+    for r in range(num_restarts):
+        current_keyword = ''.join(random.choice(alphabet_for_key) for _ in range(key_length))
+        current_primer = str(random.randint(10000, 99999)).zfill(5)
+        mixed_alphabet = create_keyed_alphabet(current_keyword, alphabet_for_cipher)
+        running_key = generate_running_key(current_primer, len(ciphertext))
+        current_score = calculate_bigram_score(decrypt_gromark(ciphertext, mixed_alphabet, running_key, alphabet_for_cipher), expected_freqs)
+        best_solution_so_far, best_score_so_far = (current_keyword, current_primer), current_score
+        
+        temperature, cooling_rate = 10000.0, 0.9995
+        while temperature > 1.0:
+            neighbor_keyword, neighbor_primer = get_neighbors(current_keyword, current_primer, alphabet_for_key, 1)[0]
+            mixed_alphabet = create_keyed_alphabet(neighbor_keyword, alphabet_for_cipher)
+            running_key = generate_running_key(neighbor_primer, len(ciphertext))
+            neighbor_score = calculate_bigram_score(decrypt_gromark(ciphertext, mixed_alphabet, running_key, alphabet_for_cipher), expected_freqs)
+            score_delta = neighbor_score - current_score
+            if score_delta < 0 or random.random() < np.exp(-score_delta / temperature):
+                current_keyword, current_primer, current_score = neighbor_keyword, neighbor_primer, neighbor_score
+            if current_score < best_score_so_far:
+                best_solution_so_far, best_score_so_far = (current_keyword, current_primer), current_score
+            temperature *= cooling_rate
+            print(f"Restart {r+1}/{num_restarts} | Temp: {temperature:.2f} | Best Score: {best_score_so_far:.2f} | Key: {best_solution_so_far[0]}", end='\r')
+
+        if best_score_so_far < best_overall_score:
+            best_overall_score, best_overall_solution = best_score_so_far, best_solution_so_far
+            print("\n" + f"{GREEN}New best overall! Score: {best_overall_score:.2f}, Keyword: {best_overall_solution[0]}, Primer: {best_overall_solution[1]}{RESET}")
+
+    print("\n\n--- Simulated Annealing Search Complete ---")
+    if best_overall_solution:
+        keyword, primer = best_overall_solution
+        print(f"Best solution found:")
+        print(f"  Keyword: {YELLOW}{keyword}{RESET}")
+        print(f"  Primer:  {YELLOW}{primer}{RESET}")
+        print(f"  Bigram Score: {YELLOW}{best_overall_score:.2f}{RESET}")
+        mixed_alphabet = create_keyed_alphabet(keyword, alphabet_for_cipher)
         running_key = generate_running_key(primer, len(ciphertext))
-        decrypted_text = decrypt_gromark(ciphertext, mixed_alphabet, running_key, alphabet)
-        highlighted_decrypted = highlight_phrases(decrypted_text, words_to_highlight, RED)
+        decrypted = decrypt_gromark(ciphertext, mixed_alphabet, running_key, alphabet_for_cipher)
+        highlighted_decrypted = highlight_phrases(decrypted, required_words)
+        print(f"  Decrypted Text: {highlighted_decrypted}")
+        utils.analyze_frequency_vg(decrypted)
+    else:
+        print(f"{RED}No solution found that improved upon random noise.{RESET}")
 
-        print(f"Keyword: {YELLOW}{keyword}{RESET}")
-        print(f"Primer: {YELLOW}{primer}{RESET}")
-        print(f"Keyed Alphabet: {GREY}{mixed_alphabet}{RESET}")
-        print(f"Running Key: {GREY}{running_key[:50]}...{RESET}")
-        print(f"Decrypted Text: {highlighted_decrypted}")
+def run_genetic_algorithm_attack(expected_freqs: Dict):
+    print(f"\n{GREEN}--- Mode 7: Genetic Algorithm Attack ---{RESET}")
+    if not expected_freqs:
+        print(f"{RED}Cannot run without bigram frequencies for scoring.{RESET}")
+        return
 
-        ioc = calculate_ioc(decrypted_text)
-        print(f"IoC of result: {YELLOW}{ioc:.4f}{RESET}")
+    # GA Helper Functions
+    def create_individual(key_len, alphabet_key):
+        keyword = ''.join(random.choice(alphabet_key) for _ in range(key_len))
+        primer = str(random.randint(10000, 99999)).zfill(5)
+        return {'keyword': keyword, 'primer': primer}
 
-    except Exception as e:
-        print(f"{RED}An error occurred during decryption: {e}{RESET}")
+    def calculate_fitness(ind, cipher, alphabet_cipher, freqs):
+        mixed = create_keyed_alphabet(ind['keyword'], alphabet_cipher)
+        running = generate_running_key(ind['primer'], len(cipher))
+        decrypted = decrypt_gromark(cipher, mixed, running, alphabet_cipher)
+        return calculate_bigram_score(decrypted, freqs)
 
-def run_test_case():
-    """ Runs a known-answer test case to verify the decryption logic. """
-    print(f"\n{GREEN}--- Mode 5: Run Known-Answer Test Case ---{RESET}")
-    print(f"{GREY}This test uses a known solution to a Zodiac Killer cipher to verify the tool's core logic.{RESET}")
+    def crossover(p1, p2):
+        child = {}
+        split = random.randint(1, len(p1['keyword']) - 1)
+        child['keyword'] = p1['keyword'][:split] + p2['keyword'][split:]
+        child_primer = "".join(random.choice(p) for p in zip(p1['primer'], p2['primer']))
+        child['primer'] = child_primer
+        return child
 
-    # Known values for the Z-32 cipher
-    ciphertext = "OHRERPHTMNUQDPUYQTGQHABASQXPTHPYSIXJUFVKNGNDRRIOMAEJGZKHCBNDBIWLDGVWDDVLXCSCZS"
-    keyword = "GRONSFELD"
-    primer = "3294151"
-    alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    known_words = ["ONLYTWOTHINGS", "THEUNIVERSE", "HUMANSTUPIDITY", "ABOUTTHEUNIVERSE"]
+    def mutate(ind, alphabet_key, rate=0.05):
+        kw_list = list(ind['keyword'])
+        for i in range(len(kw_list)):
+            if random.random() < rate: kw_list[i] = random.choice(alphabet_key)
+        ind['keyword'] = "".join(kw_list)
+        if random.random() < rate: ind['primer'] = str(random.randint(10000, 99999)).zfill(5)
+        return ind
 
-    print("\n--- Test Parameters ---")
-    print(f"Ciphertext: {ciphertext}")
-    print(f"Keyword:    {YELLOW}{keyword}{RESET}")
-    print(f"Primer:     {YELLOW}{primer}{RESET}")
-    print(f"Alphabet:   {alphabet}")
-    print("-" * 23)
-
+    # User Inputs
+    ciphertext = input("Enter ciphertext: ").upper()
     try:
-        mixed_alphabet = create_keyed_alphabet(keyword, alphabet)
-        running_key = generate_running_key(primer, len(ciphertext))
-        decrypted_text = decrypt_gromark(ciphertext, mixed_alphabet, running_key, alphabet)
-        highlighted_decrypted = highlight_phrases(decrypted_text, known_words, RED)
-        ioc = calculate_ioc(decrypted_text)
+        key_length = int(input(f"Enter keyword length: "))
+        pop_size = int(input(f"Enter population size (e.g., 100): ") or "100")
+        gens = int(input(f"Enter number of generations (e.g., 200): ") or "200")
+        elitism = int(input(f"Enter elitism count (e.g., 5): ") or "5")
+        if key_length <= 0 or pop_size <= 0 or gens <= 0: raise ValueError
+    except ValueError:
+        print(f"{RED}Invalid input. Please enter positive integers.{RESET}")
+        return
 
-        print(f"\n{GREEN}Decryption Successful:{RESET}")
-        print(highlighted_decrypted)
-        print(f"\nIoC of result: {YELLOW}{ioc:.4f}{RESET}")
+    print(f"\n{YELLOW}Define the alphabets for the search:{RESET}")
+    alphabet_for_cipher = input(f"  Enter cipher's alphabet (default: ABC...): ").upper().strip() or "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    alphabet_for_key = input(f"  Enter keyword's char set (default: Same): ").upper().strip() or alphabet_for_cipher
+    required_words_input = input("Enter known plaintext words for final highlighting (comma-separated): ").upper()
+    required_words = [word.strip() for word in required_words_input.split(",")] if required_words_input else []
+    
+    # GA Main Loop
+    population = [create_individual(key_length, alphabet_for_key) for _ in range(pop_size)]
+    best_overall_ind = None
+    best_overall_score = float('inf')
 
-    except Exception as e:
-        print(f"{RED}An error occurred during the test case decryption: {e}{RESET}")
+    for gen in range(gens):
+        scores = [(ind, calculate_fitness(ind, ciphertext, alphabet_for_cipher, expected_freqs)) for ind in population]
+        scores.sort(key=lambda x: x[1])
+        population = [item[0] for item in scores]
+        if scores[0][1] < best_overall_score:
+            best_overall_score = scores[0][1]
+            best_overall_ind = scores[0][0]
+            print(f"\n{GREEN}New best! Gen: {gen+1}, Score: {best_overall_score:.2f}, Key: {best_overall_ind['keyword']}{RESET}")
+        
+        print(f"Generation {gen+1}/{gens} | Best Score: {best_overall_score:.2f}", end='\r')
 
+        next_generation = population[:elitism]
+        while len(next_generation) < pop_size:
+            p1 = min(random.sample(population, 5), key=lambda x: calculate_fitness(x, ciphertext, alphabet_for_cipher, expected_freqs))
+            p2 = min(random.sample(population, 5), key=lambda x: calculate_fitness(x, ciphertext, alphabet_for_cipher, expected_freqs))
+            child = mutate(crossover(p1, p2), alphabet_for_key)
+            next_generation.append(child)
+        population = next_generation
+
+    print("\n\n--- Genetic Algorithm Search Complete ---")
+    if best_overall_ind:
+        print(f"Best solution found:")
+        print(f"  Keyword: {YELLOW}{best_overall_ind['keyword']}{RESET}")
+        print(f"  Primer:  {YELLOW}{best_overall_ind['primer']}{RESET}")
+        print(f"  Bigram Score: {YELLOW}{best_overall_score:.2f}{RESET}")
+        mixed_alphabet = create_keyed_alphabet(best_overall_ind['keyword'], alphabet_for_cipher)
+        running_key = generate_running_key(best_overall_ind['primer'], len(ciphertext))
+        decrypted = decrypt_gromark(ciphertext, mixed_alphabet, running_key, alphabet_for_cipher)
+        highlighted_decrypted = highlight_phrases(decrypted, required_words)
+        print(f"  Decrypted Text: {highlighted_decrypted}")
+        utils.analyze_frequency_vg(decrypted)
+    else:
+        print(f"{RED}No solution found.{RESET}")
 
 # --- MAIN EXECUTION ---
 
 def run():
     print(f"{RED}G{RESET}romark {RED}C{RESET}ipher {RED}T{RESET}oolkit")
     print(f"{GREY}-{RESET}" * 50)
-
     expected_freqs = load_bigram_frequencies(bigram_freq_path)
     if not expected_freqs:
         print(f"{RED}Warning: Bigram file not found or empty. Some features will be disabled.{RESET}")
 
     while True:
         print("\nSelect an option:")
-        print(f"  {YELLOW}1{RESET}) Dictionary Attack")
-        print(f"  {YELLOW}2{RESET}) Brute-Force by Key Length {GREY}(Computationally Expensive){RESET}")
-        print(f"  {YELLOW}3{RESET}) Hill Climbing Attack {GREEN}(Recommended for unknown keys){RESET}")
-        print(f"  {YELLOW}4{RESET}) Direct Decryption")
-        print(f"  {YELLOW}5{RESET}) Run Known-Answer Test Case")
-        print(f"  {YELLOW}6{RESET}) Exit")
+        print(f"  {YELLOW}1{RESET}) Run Known-Answer Test Case")
+        print(f"  {YELLOW}2{RESET}) Direct Decryption")
+        print("-" * 20)
+        print(f"  {YELLOW}3{RESET}) Dictionary Attack")
+        print(f"  {YELLOW}4{RESET}) Brute-Force by Key Length {GREY}(Computationally Expensive){RESET}")
+        print("-" * 20)
+        print(f"  {YELLOW}5{RESET}) Hill Climbing Attack")
+        print(f"  {YELLOW}6{RESET}) Simulated Annealing Attack {GREEN}(Recommended){RESET}")
+        print(f"  {YELLOW}7{RESET}) Genetic Algorithm Attack {GREEN}(Powerful){RESET}")
+        print(f"  {YELLOW}8{RESET}) Exit")
         choice = input(">> ")
 
-        if choice == '1':
-            run_dictionary_attack(expected_freqs)
-        elif choice == '2':
-            run_key_length_bruteforce(expected_freqs)
-        elif choice == '3':
-            run_hill_climbing_attack(expected_freqs)
-        elif choice == '4':
-            run_direct_decryption()
-        elif choice == '5':
-            run_test_case()
-        elif choice == '6':
-            break
-        else:
-            print(f"{RED}Invalid choice. Please select a valid option.{RESET}")
+        if choice == '1': run_test_case()
+        elif choice == '2': run_direct_decryption()
+        elif choice == '3': run_dictionary_attack(expected_freqs)
+        elif choice == '4': run_key_length_bruteforce(expected_freqs)
+        elif choice == '5': run_hill_climbing_attack(expected_freqs)
+        elif choice == '6': run_simulated_annealing_attack(expected_freqs)
+        elif choice == '7': run_genetic_algorithm_attack(expected_freqs)
+        elif choice == '8': break
+        else: print(f"{RED}Invalid choice. Please select a valid option.{RESET}")
 
     print(f"\n{GREY}Program complete.{RESET}")
 
