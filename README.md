@@ -30,6 +30,10 @@ More ciphers and tools to be implemented, **WIP**
 - Known Plaintext list-based attack.
 - Bruteforce using 450k English-Latin words.
 - Multiple attack modes for various ciphers, including dictionary attacks, exhaustive searches, and heuristic algorithms (Simulated Annealing, Genetic Algorithm, Hill Climbing).
+  
+  Example: Kryptos K2 cracked in less than 60s using simulated annealing.
+  <img width="1521" height="359" alt="image" src="https://github.com/user-attachments/assets/71e5c4b6-9aef-4089-9812-4c2e79099316" />
+  
 - XOR, Modulo addition and subtraction decryptor and brute forcer.
 - IoC-based analysis. Range defined by the user.
 - Frequency-based analysis. Sensibility defined by the user.
