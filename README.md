@@ -1,36 +1,40 @@
 # CBFT [Cipher Brute Force Toolkit]
 
-A comprehensive console-based (TUI) toolkit designed for cryptanalysis and cipher breaking.
+A comprehensive console-based toolkit designed for cryptanalysis and cipher breaking.
 
-![image](https://github.com/user-attachments/assets/27209098-d9f5-44da-b79d-671123d2d418)
+<img width="1380" height="1248" alt="image" src="https://github.com/user-attachments/assets/be70b9e5-d268-4dce-8639-eb97285c1798" />
 
 This toolkit provides methods for brute forcing various classical ciphers including:
-- Vigenere
+- Autoclave/Autokey
+- Caesar
+- Columnar Transposition
+- Four-Square
 - Gromark
 - Gronsfeld
-- Autoclave/Autokey
 - Hill
+- Modular Addition/Subtraction
 - Playfair
+- Vigenere
 - XOR
-- Modulo addition/subtraction
 
 It also provides some basic tools such as:
-- Ioc
 - Frequency Analysis
-- String Matrix Generator (outputs all possible n x m matrices)
+- Index of Coincidence (IoC)
+- String Matrix Generator
 
 More ciphers and tools to be implemented, **WIP**
 
-## Features
+## Features include:
 
 - Customizable alphabet support.
 - Known Plaintext list-based attack.
-- Bruteforce using dictionary attack (400k English-latin words).
-- Bigram frequency fitness scoring
-- Playfair cracking via a Memetic Algorithm (evolutionary search) to find the best key.
-- Bruteforce (for Hill) using all possible 2x2 or 3x3 matrix keys.
-- IoC based analysis. Range defined by the user.
-- Saving results to files for further analysis.
+- Bruteforce using 450k English-Latin words.
+- Multiple attack modes for various ciphers, including dictionary attacks, exhaustive searches, and heuristic algorithms (Simulated Annealing, Genetic Algorithm, Hill Climbing).
+- XOR, Modulo addition and subtraction decryptor and brute forcer.
+- IoC-based analysis. Range defined by the user.
+- Frequency-based analysis. Sensibility defined by the user.
+- Generation of all possible n x m matrices.
+- Saving results to files.
 
 To run the program, download the repository and launch main.py.
 
