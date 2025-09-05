@@ -3,6 +3,8 @@ from typing import List, Dict, Tuple
 import time
 from functools import lru_cache
 import os
+import random
+import math
 
 # --- DUMMY UTILS CLASS (to make script standalone) ---
 class DummyUtils:
@@ -26,11 +28,11 @@ class DummyUtils:
                 for result in results:
                     f.write(f"Key: {result['key']}\n")
                     if 'ioc' in result:
-                        f.write(f"IoC Score: {result['ioc']:.4f}\n")
+                        f.write(f"IoC Score: {result.get('ioc', 0):.4f}\n")
                     if 'bigram_score' in result:
-                        f.write(f"Bigram Score: {result['bigram_score']:.2f}\n")
+                        f.write(f"Bigram Score: {result.get('bigram_score', 0):.2f}\n")
                     if include_phrases and result.get('is_phrase_match'):
-                        f.write(f"Matched Phrases: {', '.join(result['matched_phrases'])}\n")
+                        f.write(f"Matched Phrases: {', '.join(result.get('matched_phrases', []))}\n")
                     f.write(f"Plaintext: {result['plaintext']}\n")
                     f.write("-" * 20 + "\n")
             print(f"{GREEN}Results successfully saved to {filename}{RESET}")
@@ -58,11 +60,13 @@ class DummyUtils:
 utils = DummyUtils()
 
 # --- COLOR CODES AND PATHS ---
-RED = '\033[38;5;88m'
-YELLOW = '\033[38;5;3m'
-GREY = '\033[38;5;238m'
-GREEN = '\033[38;5;2m'
+RED = '\033[38;5;196m'
+YELLOW = '\033[38;5;226m'
+GREY = '\033[38;5;242m'
+GREEN = '\033[38;5;46m'
+BLUE = '\033[38;5;39m'
 RESET = '\033[0m'
+
 
 data_dir = os.path.join(os.path.dirname(__file__), "data")
 dictionary_path = os.path.join(data_dir, "words_alpha.txt")
@@ -124,10 +128,11 @@ def decrypt_vigenere(ciphertext: str, key: str, alphabet_str: str) -> str:
     plaintext = []
     key_index = 0
     for char in ciphertext:
-        if char in alphabet_dict:
-            char_index = alphabet_dict[char]
+        char_upper = char.upper()
+        if char_upper in alphabet_dict:
+            char_index = alphabet_dict[char_upper]
             shift = key_shifts[key_index % len(key_shifts)]
-            decrypted_char = alphabet[(char_index - shift) % alphabet_length]
+            decrypted_char = alphabet[(char_index - shift + alphabet_length) % alphabet_length]
             plaintext.append(decrypted_char.lower())
             key_index += 1
         else:
@@ -151,34 +156,25 @@ def contains_all_phrases(text: str, phrases: List[str]) -> bool:
     return all(phrase.upper() in text.upper().replace(" ", "") for phrase in phrases)
 
 def highlight_phrases(text: str, phrases: List[str]) -> str:
-    highlighted_text = text
+    highlighted_text = text.lower()
     if not phrases: return highlighted_text
     for phrase in phrases:
-        # As decrypted text is lowercase, we search for lowercase phrases
         phrase_lower = phrase.lower().replace(" ", "")
         highlighted_text = highlighted_text.replace(phrase_lower, f"{RED}{phrase_lower}{RESET}")
     return highlighted_text
 
+# --- DICTIONARY ATTACK FUNCTIONS ---
+
 def process_batch(args: Tuple) -> List[Dict]:
     word_batch, ciphertext, target_phrases, alphabet_str, expected_freqs = args
     results = []
-    
     for word in word_batch:
         plaintext = decrypt_vigenere(ciphertext, word, alphabet_str)
         is_phrase_match = contains_all_phrases(plaintext, target_phrases)
-        
-        # We process every word for scores, as a good statistical match might be the key
-        # even if it doesn't contain the specific crib words.
         ioc = utils.calculate_ioc(plaintext)
         bigram_score = calculate_bigram_score(plaintext, expected_freqs)
-        
-        # Add to results if it's either a phrase match or a good IoC match (will be filtered later)
-        # This reduces redundant calculations
         results.append({
-            'key': word,
-            'plaintext': plaintext,
-            'ioc': ioc,
-            'bigram_score': bigram_score,
+            'key': word, 'plaintext': plaintext, 'ioc': ioc, 'bigram_score': bigram_score,
             'is_phrase_match': is_phrase_match,
             'matched_phrases': target_phrases if is_phrase_match else []
         })
@@ -187,8 +183,17 @@ def process_batch(args: Tuple) -> List[Dict]:
 def batch_words(words: List[str], batch_size: int = 500) -> List[List[str]]:
     return [words[i:i + batch_size] for i in range(0, len(words), batch_size)]
 
-def crack_vigenere(ciphertext: str, alphabet_str: str, target_phrases: List[str], dictionary_path: str,
-                   specific_keys: List[str], expected_freqs: Dict) -> List[Dict]:
+def run_dictionary_attack(ciphertext: str, alphabet_str: str, expected_freqs: Dict):
+    print(f"\n{BLUE}--- Dictionary Attack ---{RESET}")
+    target_phrases_input = input("Enter known plaintext words/phrases (comma-separated, or press Enter for none): ").upper()
+    target_phrases = [phrase.strip() for phrase in target_phrases_input.split(",")] if target_phrases_input else []
+    specific_keys_input = input("Enter specific keys to try first (comma-separated, or press Enter to skip): ").upper()
+    specific_keys = [key.strip() for key in specific_keys_input.split(",")] if specific_keys_input else []
+    
+    min_ioc_str = input(f"Enter minimum IoC (default: {YELLOW}0.065{RESET}): ") or "0.065"
+    max_ioc_str = input(f"Enter maximum IoC (default: {YELLOW}0.070{RESET}): ") or "0.070"
+    min_ioc, max_ioc = float(min_ioc_str), float(max_ioc_str)
+
     all_results = []
     
     if specific_keys:
@@ -213,130 +218,151 @@ def crack_vigenere(ciphertext: str, alphabet_str: str, target_phrases: List[str]
         num_processes = max(1, os.cpu_count() - 1)
         total_batches = len(word_batches)
         
-        print(f"\n{YELLOW}Trying {len(dictionary)} potential keys from dictionary...{RESET}")
-        print(f"Processing {YELLOW}{total_batches}{RESET} batches with {YELLOW}{num_processes}{RESET} processes")
+        print(f"\n{YELLOW}Trying {len(dictionary):,} potential keys...{RESET}")
+        print(f"Processing with {YELLOW}{num_processes}{RESET} processes...")
         start_time = time.time()
-        processed_batches = 0
         
         with ProcessPoolExecutor(max_workers=num_processes) as executor:
-            futures = [
-                executor.submit(process_batch, (batch, ciphertext, target_phrases, alphabet_str, expected_freqs))
-                for batch in word_batches
-            ]
-            for future in as_completed(futures):
-                try:
-                    batch_results = future.result()
-                    all_results.extend(batch_results)
-                    processed_batches += 1
-                    progress_percent = (processed_batches / total_batches) * 100
-                    if processed_batches % max(1, total_batches // 20) == 0 or processed_batches == total_batches:
-                        print(f"Progress: {processed_batches}/{total_batches} batches ({progress_percent:.1f}%)", end='\r')
-                except Exception as e:
-                    print(f"{RED}Batch processing error: {e}{RESET}")
-                    processed_batches += 1
-                    continue
-        print("\n")
-        end_time = time.time()
-        print(f"{YELLOW}Dictionary search complete in {end_time - start_time:.2f} seconds{RESET}")
+            futures = [executor.submit(process_batch, (b, ciphertext, target_phrases, alphabet_str, expected_freqs)) for b in word_batches]
+            for i, future in enumerate(as_completed(futures)):
+                all_results.extend(future.result())
+                print(f"Progress: {(i + 1) / total_batches:.1%}", end='\r')
+        print(f"\nDictionary search complete in {time.time() - start_time:.2f} seconds.{RESET}")
     
-    return all_results
-
-def run():
-    print(f"""{GREY} 
-██    ██ ██  ██████  ███████ ███    ██ ███████ ██████  ███████ 
-██    ██ ██ ██      ██      ████   ██ ██      ██   ██ ██      
-██    ██ ██ ██  ███ █████   ██ ██  ██ █████   ██████  █████   
- ██  ██  ██ ██   ██ ██      ██  ██ ██ ██      ██   ██ ██      
-  ████   ██  ██████  ███████ ██   ████ ███████ ██   ██ ███████ 
-                                                              {RESET}""")
-    print(f"{RED}V{RESET}igenere {RED}B{RESET}rute {RED}F{RESET}orcer")
-    print(f"{GREY}-{RESET}" * 50)
+    filtered_results = [r for r in all_results if r['is_phrase_match'] or (min_ioc <= r['ioc'] <= max_ioc)]
     
-    use_test = input(f"Use test case? ({YELLOW}Y/N{RESET}): ").upper() == 'Y'
-    
-    if use_test:
-        ciphertext = "EMUFPHZLRFAXYUSDJKZLDKRNSHGNFIVJYQTQUXQBQVYUVLLTREVJYQTMKYRDMFD"
-        alphabet_str = "KRYPTOSABCDEFGHIJLMNQUVWXZ"
-        target_phrases = ["BETWEEN", "SUBTLE"]
-        expected_key = "PALIMPSEST"
-        specific_keys = ["PALIMPSEST"]
-        min_ioc = 0.065
-        max_ioc = 0.07
-        
-        print(f"\n{GREY}--- Running Test Case ---{RESET}")
-        print(f"Ciphertext: {ciphertext}")
-        print(f"Target phrases: {', '.join(target_phrases)}")
-        print(f"Expected key: {expected_key}")
-        print(f"-------------------------{RESET}")
-    else:
-        ciphertext = input("Enter ciphertext: ").upper()
-        alphabet_input = input(f"Enter alphabet (default: {RED}ABCDEFGHIJKLMNOPQRSTUVWXYZ{RESET}): ").upper()
-        alphabet_str = alphabet_input if alphabet_input else "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-        target_phrases_input = input("Enter known plaintext words/phrases (comma-separated, or press Enter for none): ").upper()
-        target_phrases = [phrase.strip() for phrase in target_phrases_input.split(",")] if target_phrases_input else []
-        specific_keys_input = input("Enter specific keys to try first (comma-separated, or press Enter to skip): ").upper()
-        specific_keys = [key.strip() for key in specific_keys_input.split(",")] if specific_keys_input else []
-        
-        min_ioc_str = input(f"Enter minimum IoC (default: {YELLOW}0.065{RESET}): ") or "0.065"
-        max_ioc_str = input(f"Enter maximum IoC (default: {YELLOW}0.070{RESET}): ") or "0.070"
-        min_ioc, max_ioc = float(min_ioc_str), float(max_ioc_str)
-
-    # Load bigram frequencies once
-    expected_freqs = load_bigram_frequencies(bigram_freq_path)
-    if not expected_freqs:
-        print(f"{RED}Warning: Bigram file not found. Scores will be less accurate.{RESET}")
-
-    all_results = crack_vigenere(
-        ciphertext, alphabet_str, target_phrases, dictionary_path, 
-        specific_keys, expected_freqs
-    )
-    
-    # Filter out results that are not a phrase match and not in IoC range
-    filtered_results = [
-        r for r in all_results 
-        if r['is_phrase_match'] or (min_ioc <= r['ioc'] <= max_ioc)
-    ]
-    
-    # Sort results based on the specified criteria
     filtered_results.sort(key=lambda x: (
-        0 if x['is_phrase_match'] else 1,            # Priority 1: Phrase matches first
-        0 if min_ioc <= x['ioc'] <= max_ioc else 1, # Priority 2: In IoC range
-        x['bigram_score'],                          # Priority 3: Bigram score (lower is better)
-        -x['ioc']                                   # Priority 4: IoC (higher is better)
+        0 if x['is_phrase_match'] else 1, 0 if min_ioc <= x['ioc'] <= max_ioc else 1,
+        x['bigram_score'], -x['ioc']
     ))
 
     if filtered_results:
         print(f"\n{YELLOW}--- TOP 10 RANKED SOLUTIONS ---{RESET}")
-        print(f"{GREY}Ranked by: 1. Phrase Match, 2. IoC in Range, 3. Bigram Score, 4. IoC Score{RESET}")
-        
         for i, result in enumerate(filtered_results[:10]):
-            is_in_range = min_ioc <= result['ioc'] <= max_ioc
-            range_marker = GREEN + " (In Range)" + RESET if is_in_range else ""
+            range_marker = GREEN + " (In Range)" + RESET if min_ioc <= result['ioc'] <= max_ioc else ""
             phrase_marker = YELLOW + " (Phrase Match)" + RESET if result['is_phrase_match'] else ""
-            
             highlighted = highlight_phrases(result['plaintext'], result['matched_phrases'])
-
-            print(f"{GREY}-{RESET}" * 50)
+            print(f"{GREY}-{'':-^50}{RESET}")
             print(f"Rank #{i+1}: Key: {YELLOW}{result['key']}{RESET}{phrase_marker}")
-            print(f"Scores: IoC: {YELLOW}{result['ioc']:.4f}{RESET}{range_marker} | Bigram: {YELLOW}{result['bigram_score']:.2f}{RESET} (Lower is better)")
+            print(f"Scores: IoC: {YELLOW}{result['ioc']:.4f}{RESET}{range_marker} | Bigram: {YELLOW}{result['bigram_score']:.2f}{RESET}")
             print(f"Plaintext: {highlighted}")
         
-        if use_test:
-            test_passed = any(r['key'] == expected_key for r in filtered_results if r['is_phrase_match'])
-            print(f"\n{YELLOW}PHRASE-MATCH TEST CASE {'PASSED' if test_passed else 'FAILED'}{RESET}")
-
-        save_choice = input(f"\nSave all {len(filtered_results)} found results to file? ({YELLOW}Y/N{RESET}): ").upper()
-        if save_choice == 'Y':
-            filename = input("Enter filename for results: ") or "vigenere_results.txt"
-            utils.save_results_to_file(filtered_results, filename)
-
-        analyze_choice = input(f"Run frequency analysis on best match? ({YELLOW}Y/N{RESET}): ").upper()
-        if analyze_choice == 'Y':
-            utils.analyze_frequency_vg(filtered_results[0]['plaintext'])
+        if input(f"\nSave all {len(filtered_results)} results? ({YELLOW}Y/N{RESET}): ").upper() == 'Y':
+            fname = input("Enter filename: ") or "vigenere_results.txt"
+            utils.save_results_to_file(filtered_results, fname)
     else:
         print(f"\n{RED}NO SOLUTIONS FOUND{RESET}")
+
+# --- SIMULATED ANNEALING ATTACK FUNCTIONS ---
+
+def generate_neighbor_key(key: str, alphabet: str) -> str:
+    """Creates a neighbor key by slightly modifying the current key."""
+    key_list = list(key)
+    pos = random.randint(0, len(key_list) - 1)
+    key_list[pos] = random.choice(alphabet)
+    return "".join(key_list)
+
+def run_simulated_annealing_attack(ciphertext: str, alphabet_str: str, expected_freqs: Dict):
+    """Attempts to find a non-dictionary key using simulated annealing."""
+    print(f"\n{BLUE}--- Simulated Annealing Attack ---{RESET}")
+    try:
+        key_length = int(input("Enter the exact key length to search for: "))
+        if key_length <= 0: raise ValueError
+    except ValueError:
+        print(f"{RED}Invalid key length.{RESET}")
+        return
+
+    # Annealing Parameters
+    initial_temp = 1000.0
+    iterations = 200_000
+
+    print(f"Running {YELLOW}{iterations:,}{RESET} iterations for a key of length {YELLOW}{key_length}{RESET}...")
+    
+    alphabet, _ = get_alphabet(alphabet_str)
+    
+    # Initial State
+    current_key = "".join(random.choice(alphabet) for _ in range(key_length))
+    plaintext = decrypt_vigenere(ciphertext, current_key, alphabet_str)
+    current_score = calculate_bigram_score(plaintext, expected_freqs)
+
+    best_key, best_score = current_key, current_score
+    
+    try:
+        for i in range(iterations):
+            temp = initial_temp * (1.0 - (i + 1) / iterations)
+            if temp <= 0: break
+
+            neighbor_key = generate_neighbor_key(current_key, alphabet)
+            plaintext = decrypt_vigenere(ciphertext, neighbor_key, alphabet_str)
+            neighbor_score = calculate_bigram_score(plaintext, expected_freqs)
+            
+            delta = neighbor_score - current_score
+            if delta < 0 or random.random() < math.exp(-delta / temp):
+                current_key, current_score = neighbor_key, neighbor_score
+                if current_score < best_score:
+                    best_key, best_score = current_key, current_score
+
+            if (i + 1) % 1000 == 0:
+                print(f"Progress: {((i + 1) / iterations):6.1%} | Best Score: {best_score:10.2f} | Key: {best_key}", end='\r')
         
+        print("\n" + "="*80)
+        print(f"\n{YELLOW}--- FINAL BEST RESULT ---{RESET}")
+        best_plaintext = decrypt_vigenere(ciphertext, best_key, alphabet_str)
+        print(f"Key: {YELLOW}{best_key}{RESET}")
+        print(f"Bigram Score: {YELLOW}{best_score:.2f}{RESET} (Lower is better)")
+        print(f"IoC: {YELLOW}{utils.calculate_ioc(best_plaintext):.4f}{RESET}")
+        print(f"Plaintext: {best_plaintext.lower()}")
+
+    except KeyboardInterrupt:
+        print("\n\nProcess interrupted by user.")
+
+# --- MAIN APPLICATION ---
+
+def run_direct_decrypt(ciphertext: str, alphabet_str: str):
+    print(f"\n{BLUE}--- Direct Decryption ---{RESET}")
+    key = input("Enter the decryption key: ").upper()
+    if not key:
+        print(f"{RED}Key cannot be empty.{RESET}")
+        return
+    
+    plaintext = decrypt_vigenere(ciphertext, key, alphabet_str)
+    print(f"\nKey: {YELLOW}{key}{RESET}")
+    print(f"Plaintext: {plaintext}")
+
+def run():
+    print(f"{RED}V{RESET}igenere {RED}B{RESET}rute {RED}F{RESET}orcer")
+    
+    ciphertext = input(f"\nEnter ciphertext: ").upper()
+    alphabet_input = input(f"Enter alphabet (default: {RED}A-Z{RESET}): ").upper()
+    alphabet_str = alphabet_input if alphabet_input else "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+    expected_freqs = load_bigram_frequencies(bigram_freq_path)
+    if not expected_freqs:
+        print(f"{RED}Warning: Bigram file not found. Scoring will be less accurate.{RESET}")
+        return
+
+    while True:
+        print(f"\n{GREY}{'-'*50}{RESET}")
+        print("Select an attack mode:")
+        print(f"  ({YELLOW}1{RESET}) Direct Decryption (Known Key)")
+        print(f"  ({YELLOW}2{RESET}) Dictionary Attack (Key is an English word)")
+        print(f"  ({YELLOW}3{RESET}) Simulated Annealing (Unknown Key of a known length)")
+        print(f"  ({YELLOW}4{RESET}) Exit")
+        choice = input(">> ")
+
+        if choice == '1':
+            run_direct_decrypt(ciphertext, alphabet_str)
+        elif choice == '2':
+            run_dictionary_attack(ciphertext, alphabet_str, expected_freqs)
+        elif choice == '3':
+            run_simulated_annealing_attack(ciphertext, alphabet_str, expected_freqs)
+        elif choice == '4':
+            break
+        else:
+            print(f"{RED}Invalid choice.{RESET}")
+
     print(f"\n{GREY}Program complete.{RESET}")
+
 
 if __name__ == "__main__":
     if not os.path.exists(data_dir):
