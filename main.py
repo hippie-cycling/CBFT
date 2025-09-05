@@ -21,7 +21,8 @@ MODULE_MAP = {
     'playfair': 'playfair',
     'matrix_generator': 'Matrix Generator',
     'ioc': 'ioc',
-    'freq_analysis': 'freq_analysis'
+    'freq_analysis': 'freq_analysis',
+    'columnar_transposition': 'columnar_transposition'
 }
 
 # Try to import the cipher and tool modules
@@ -128,21 +129,23 @@ def display_menu():
     """Display the menu"""
     options = [
         (0, "Help & Documentation", Style.WHITE, 'help'),
-        (-1, "CIPHER OPTIONS", Style.CYAN, None),
+        (-1, "SUBSTITUTION CIPHER OPTIONS", Style.CYAN, None),
         (1, "Vigenere Cipher", Style.GREEN, 'vigenere'),
         (2, "Gromark Cipher", Style.GREEN, 'gromark'),
         (3, "Gronsfeld Cipher", Style.GREEN, 'gronsfeld'),
         (4, "Autoclave Cipher", Style.GREEN, 'autoclave'),
         (5, "Hill Cipher", Style.GREEN, 'hill'),
         (6, "XOR", Style.GREEN, 'xor'),
-        (7, "Mod ADD-SUB", Style.GREEN, 'mod_add_sub'),
+        (7, "Modular ADD-SUB", Style.GREEN, 'mod_add_sub'),
         (8, "Caesar Cipher", Style.GREEN, 'caesar'),
         (9, "Playfair Cipher", Style.GREEN, 'playfair'),
-        (-2, "CRYPTANALYSIS TOOLS", Style.CYAN, None),
+        (-2, "TRANSPOSITION CIPHER OPTIONS", Style.CYAN, None),
+        (20, "Columnar Transposition Cipher", Style.GREEN, 'columnar_transposition'),
+        (-3, "CRYPTANALYSIS TOOLS", Style.CYAN, None),
         (10, "Matrix Generator", Style.YELLOW, 'matrix_generator'),
         (11, "Calculate IoC", Style.YELLOW, 'ioc'),
         (12, "Frequency Analysis", Style.YELLOW, 'freq_analysis'),
-        (-3, "OTHER OPTIONS", Style.CYAN, None),
+        (-4, "OTHER OPTIONS", Style.CYAN, None),
         ('A', "About", Style.WHITE, 'about'),
         ('E', "Exit", Style.RED, 'exit')
     ]
@@ -177,10 +180,13 @@ def display_help():
 A simple substitution cipher where each letter is shifted by a fixed number of
 positions down the alphabet. This tool allows for both encryption and decryption
 with a known key.
+It also has the option to brute force the 26 possible shifts and score the results.
 
 {Style.GREEN}PLAYFAIR CIPHER:{Style.RESET}
-A digraph substitution cipher. This tool can brute force the key by checking
-for English-like Index of Coincidence (IoC) values or known plaintext phrases.
+A digraph substitution cipher. This tool can brute force the key using various approaches:
+1. Dictionary attack with bigram frequency fitness scoring
+2. Memetic Algorithm (evolutionary search) to find the best key.
+3. Direct decryption with a key.
 
 {Style.GREEN}VIGENERE CIPHER:{Style.RESET}
 Input custom alphabet and target words. Checks every word in English wordlist, 
@@ -215,6 +221,10 @@ with frequency analysis.
 Given a ciphertext, it will calculate every possible n x m matrix and save the
 results from reading the columns left to right and vice versa.
 
+{Style.GREEN}COLUMNAR TRANSPOSITION CIPHER:{Style.RESET}
+This transposition tool can brute force the key using various
+approaches for single and double columnar transposition.
+
 {Style.UNDERLINE}CRYPTANALYSIS TOOLS:{Style.RESET}
 
 {Style.YELLOW}CALCULATE IoC:{Style.RESET}
@@ -226,9 +236,10 @@ Performs frequency analysis on a given text. Helps identify potential substituti
 ciphers by comparing letter frequencies with standard English letter frequencies.
 
 {Style.UNDERLINE}TIPS:{Style.RESET}
-• Try common words like "FROM", "THE", "LIKE", "THAT".
+• Try common plaintext words like "FROM", "THE", "LIKE", "THAT".
 • Use the IoC range to filter potential solutions.
 • Use frequency analysis to filter potential solutions.
+• Use bigram score to filter potential solutions.
 • Note that if many results are found, only a few will be printed in console. Use the
   "Save into file" functionality and filter the results accordingly.
 """
@@ -251,9 +262,10 @@ modulo-based Addition and Subtraction, and Playfair.
 {Style.UNDERLINE}FEATURES:{Style.RESET}
 • Custom alphabet support
 • Word list attacks (350k English words)
-• Matrix attacks for Hill cipher (2x2 and 3x3).
+• Hill Climb and Simulated Annealing Algorithms
 • Index of Coincidence (IoC) analysis
-• Frequency analysis
+• Bigram Score ranking
+• Letter, Bigram and Trigram Frequency analysis
 
 {Style.UNDERLINE}DEVELOPER:{Style.RESET}
 github.com/hippie-cycling
@@ -316,6 +328,8 @@ def main():
                 run_module('caesar')
             elif choice == '9':
                 run_module('playfair')
+            elif choice == '20':
+                run_module('columnar_transposition')
             elif choice == '10':
                 run_module('matrix_generator')
             elif choice == '11':
