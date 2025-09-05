@@ -59,12 +59,14 @@ class DummyUtils:
 utils = DummyUtils()
 
 # --- COLOR CODES AND PATHS ---
-RED = '\033[38;5;196m'
-YELLOW = '\033[38;5;226m'
-GREY = '\033[38;5;242m'
-GREEN = '\033[38;5;46m'
-BLUE = '\033[38;5;39m'
 RESET = '\033[0m'
+GREEN = '\033[32m'
+YELLOW = '\033[33m'
+RED = '\033[31m'
+BLUE = '\033[34m'
+CYAN = '\033[36m'
+WHITE = '\033[37m'
+GREY = '\033[90m'
 
 data_dir = os.path.join(os.path.dirname(__file__), "data")
 bigram_freq_path = os.path.join(data_dir, "english_bigrams.txt")
@@ -230,11 +232,14 @@ def run_simulated_annealing_attack(ciphertext: str, alphabet: str, expected_freq
     try:
         key_length = int(input("Enter the exact key length to search for: "))
         if key_length <= 0: raise ValueError
+        iterations_str = input(f"Enter number of iterations (default: {YELLOW}200,000{RESET}): ")
+        iterations = int(iterations_str) if iterations_str else 200_000
+        if iterations <= 0: raise ValueError
     except ValueError:
-        print(f"{RED}Invalid key length.{RESET}")
+        print(f"{RED}Invalid input. Please enter positive integers.{RESET}")
         return
 
-    initial_temp, iterations = 1000.0, 200_000
+    initial_temp = 1000.0
     print(f"Running {YELLOW}{iterations:,}{RESET} iterations for a key of length {YELLOW}{key_length}{RESET}...")
     
     current_key = "".join(str(random.randint(0, 9)) for _ in range(key_length))
@@ -324,3 +329,4 @@ if __name__ == "__main__":
         with open(bigram_freq_path, 'w') as f:
             f.write("TH 1.52\nHE 1.28\nIN 0.94\nER 0.94\nAN 0.82\n")
     run()
+
