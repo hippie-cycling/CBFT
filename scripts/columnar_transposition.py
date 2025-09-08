@@ -566,14 +566,6 @@ def simulated_annealing_attack_double():
              print(f"Bigram Score: {YELLOW}{best_state['bigram_score']:.2f}{RESET}")
              print(f"Decrypted: {highlighted_decrypted}")
 
-    except KeyboardInterrupt:
-        print("\n\nProcess interrupted by user.")
-        if best_state and best_state['plaintext']:
-             print(f"\n{YELLOW}--- BEST RESULT FOUND BEFORE STOPPING ---{RESET}")
-             highlighted_decrypted = highlight_phrases(best_state['plaintext'], required_words)
-             print(f"Keys: {YELLOW}({best_state['key1']}, {best_state['key2']}){RESET}")
-             print(f"Bigram Score: {YELLOW}{best_state['bigram_score']:.2f}{RESET}")
-             print(f"Decrypted: {highlighted_decrypted}")
 def run():
     while True:
         print(f"\n{BLUE}Columnar Transposition Cipher Tool{RESET}")

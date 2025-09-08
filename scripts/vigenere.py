@@ -307,19 +307,22 @@ def run_simulated_annealing_attack(ciphertext: str, alphabet_str: str, expected_
                     best_key, best_score = current_key, current_score
 
             if (i + 1) % 1000 == 0:
-                print(f"Progress: {((i + 1) / iterations):6.1%} | Best Score: {best_score:10.2f} | Key: {best_key}", end='\r')
-        
-        print("\n" + "="*80)
-        print(f"\n{YELLOW}--- FINAL BEST RESULT ---{RESET}")
-        best_plaintext = decrypt_vigenere(ciphertext, best_key, alphabet_str)
-        print(f"Key: {YELLOW}{best_key}{RESET}")
-        print(f"Bigram Score: {YELLOW}{best_score:.2f}{RESET} (Lower is better)")
-        print(f"IoC: {YELLOW}{utils.calculate_ioc(best_plaintext):.4f}{RESET}")
-        print(f"Plaintext: {best_plaintext.lower()}")
-
+                # Decrypt with the best key for the status update
+                best_plaintext_for_display = decrypt_vigenere(ciphertext, best_key, alphabet_str).upper()
+                display_text = best_plaintext_for_display.replace('\n', ' ').replace('\r', '')[:40]
+                print(f"Progress: {((i + 1) / iterations):6.1%} | Best Score: {best_score:10.2f} | Key: {best_key} | Plaintext: {display_text}...", end='\r')
+    
     except KeyboardInterrupt:
-        print("\n\nProcess interrupted by user.")
-
+        print("\n\nProcess interrupted by user. Displaying best result found...")
+    
+    # This block now executes on both normal completion and interruption
+    print("\n" + "="*80)
+    print(f"\n{YELLOW}--- FINAL BEST RESULT ---{RESET}")
+    best_plaintext = decrypt_vigenere(ciphertext, best_key, alphabet_str).upper()
+    print(f"Key: {YELLOW}{best_key}{RESET}")
+    print(f"Bigram Score: {YELLOW}{best_score:.2f}{RESET} (Lower is better)")
+    print(f"IoC: {YELLOW}{utils.calculate_ioc(best_plaintext):.4f}{RESET}")
+    print(f"Plaintext: {best_plaintext}")
 # --- MAIN APPLICATION ---
 
 def run_direct_decrypt(ciphertext: str, alphabet_str: str):
