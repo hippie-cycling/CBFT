@@ -1,7 +1,7 @@
 import os
 import math
 import re
-import sys  # <-- ADDED IMPORT
+import sys
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from typing import List, Dict
 from functools import lru_cache
@@ -366,12 +366,99 @@ def generate_neighbor(key: str) -> str:
     key_list[i], key_list[j] = key_list[j], key_list[i]
     return "".join(key_list)
 
-def simulated_annealing_attack():
+def simulated_annealing_attack_single():
+    """
+    Attempts to break a single columnar transposition cipher using simulated annealing.
+    """
+    print(f"\n{BLUE}--- Simulated Annealing Attack (Single Key) ---{RESET}")
+    ciphertext = input("Enter ciphertext: ").upper().replace(" ", "")
+    required_words_input = input("Enter known plaintext words to highlight (comma-separated, optional): ")
+    required_words = [word.strip() for word in required_words_input.split(",")] if required_words_input else []
+    
+    try:
+        key_len = int(input(f"Enter exact key length to test (e.g., 10, recommended for keys > 8): "))
+        if key_len <= 1:
+            print(f"{RED}Key length must be greater than 1.{RESET}")
+            return
+        
+        default_iters = 500_000 if key_len > 12 else 200_000
+        iterations = int(input(f"Enter number of iterations (default: {YELLOW}{default_iters:,}{RESET}): ") or str(default_iters))
+
+    except ValueError:
+        print(f"{RED}Invalid number.{RESET}")
+        return
+
+    initial_temp = 1000.0 
+    print(f"Running {YELLOW}{iterations:,}{RESET} iterations... (Updates will print only when a better score is found)")
+    
+    expected_freqs = load_bigram_frequencies(bigram_freq_path)
+    if not expected_freqs:
+        print(f"{RED}Bigram frequency file not found. Cannot score candidates.{RESET}")
+        return
+
+    # Initial State
+    cols = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"[:key_len]
+    current_key = "".join(random.sample(cols, len(cols)))
+    current_plaintext = decrypt_columnar_transposition(ciphertext, current_key)
+    current_score = calculate_bigram_score(current_plaintext, expected_freqs)
+
+    best_state = {
+        'key': current_key,
+        'bigram_score': current_score
+    }
+    
+    temp = initial_temp
+    try:
+        for i in range(iterations):
+            new_key = generate_neighbor(current_key)
+            new_plaintext = decrypt_columnar_transposition(ciphertext, new_key)
+            new_score = calculate_bigram_score(new_plaintext, expected_freqs)
+            
+            delta = new_score - current_score
+            if delta < 0 or random.random() < math.exp(-delta / temp):
+                current_key = new_key
+                current_score = new_score
+                
+                if current_score < best_state['bigram_score']:
+                    # --- MODIFICATION: Only store the key and score ---
+                    best_state['key'] = current_key
+                    best_state['bigram_score'] = current_score
+                    
+                    # --- Re-decrypt for display to ensure consistency ---
+                    best_plaintext_for_display = decrypt_columnar_transposition(ciphertext, best_state['key'])
+                    display_text = best_plaintext_for_display.replace('\n', ' ').replace('\r', '')[:50]
+                    print(f"Score: {best_state['bigram_score']:<10.2f} | Key: {YELLOW}{best_state['key']}{RESET} | Text: {display_text}...")
+
+            temp = initial_temp * (1.0 - (i + 1) / iterations)
+
+        print("\n" + "="*80)
+        print(f"\n{YELLOW}--- FINAL BEST RESULT ---{RESET}")
+        if best_state.get('key'):
+            # --- MODIFICATION: Final decryption from the best key found ---
+            final_plaintext = decrypt_columnar_transposition(ciphertext, best_state['key'])
+            highlighted_decrypted = highlight_phrases(final_plaintext, required_words)
+            print(f"Key: {YELLOW}{best_state['key']}{RESET}")
+            print(f"Bigram Score: {YELLOW}{best_state['bigram_score']:.2f}{RESET} (Lower is better)")
+            print(f"IoC: {YELLOW}{calculate_ioc(final_plaintext):.4f}{RESET}")
+            print(f"Decrypted: {highlighted_decrypted}")
+        else:
+            print(f"{RED}No result found.{RESET}")
+
+    except KeyboardInterrupt:
+        print("\n\nProcess interrupted by user.")
+        if best_state.get('key'):
+             print(f"\n{YELLOW}--- BEST RESULT FOUND BEFORE STOPPING ---{RESET}")
+             final_plaintext = decrypt_columnar_transposition(ciphertext, best_state['key'])
+             highlighted_decrypted = highlight_phrases(final_plaintext, required_words)
+             print(f"Key: {YELLOW}{best_state['key']}{RESET}")
+             print(f"Bigram Score: {YELLOW}{best_state['bigram_score']:.2f}{RESET}")
+             print(f"Decrypted: {highlighted_decrypted}")
+
+def simulated_annealing_attack_double():
     """
     Attempts to break a double columnar transposition cipher using simulated annealing.
-    This is effective for key lengths where exhaustive search is impossible.
     """
-    print(f"\n{BLUE}--- Simulated Annealing Attack (Double Columnar) ---{RESET}")
+    print(f"\n{BLUE}--- Simulated Annealing Attack (Double Key) ---{RESET}")
     ciphertext = input("Enter ciphertext: ").upper().replace(" ", "")
     required_words_input = input("Enter known plaintext words to highlight (comma-separated, optional): ")
     required_words = [word.strip() for word in required_words_input.split(",")] if required_words_input else []
@@ -398,80 +485,86 @@ def simulated_annealing_attack():
         print(f"{RED}Invalid number.{RESET}")
         return
 
-    # --- Annealing Parameters ---
     initial_temp = 1000.0 
-
-    print(f"Running {YELLOW}{iterations:,}{RESET} iterations...")
+    print(f"Running {YELLOW}{iterations:,}{RESET} iterations... (Updates will print only when a better score is found)")
     
     expected_freqs = load_bigram_frequencies(bigram_freq_path)
     if not expected_freqs:
         print(f"{RED}Bigram frequency file not found. Cannot score candidates.{RESET}")
         return
 
-    # --- 1. Initial State (modified for potentially different lengths) ---
+    # Initial State
     cols1 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"[:key_len1]
     cols2 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"[:key_len2]
     current_key1 = "".join(random.sample(cols1, len(cols1)))
     current_key2 = "".join(random.sample(cols2, len(cols2)))
     
     intermediate = decrypt_columnar_transposition(ciphertext, current_key2)
-    plaintext = decrypt_columnar_transposition(intermediate, current_key1)
-    current_score = calculate_bigram_score(plaintext, expected_freqs)
+    current_plaintext = decrypt_columnar_transposition(intermediate, current_key1)
+    current_score = calculate_bigram_score(current_plaintext, expected_freqs)
 
     best_state = {
-        'key1': current_key1, 'key2': current_key2, 'plaintext': plaintext,
-        'bigram_score': current_score, 'ioc': calculate_ioc(plaintext)
+        'key1': current_key1,
+        'key2': current_key2,
+        'bigram_score': current_score
     }
     
     temp = initial_temp
-    
     try:
         for i in range(iterations):
-            # --- 2. Generate Neighbor ---
             new_key1, new_key2 = current_key1, current_key2
             if random.random() < 0.5:
                 new_key1 = generate_neighbor(current_key1)
             else:
                 new_key2 = generate_neighbor(current_key2)
 
-            # --- 3. Evaluate Neighbor ---
             intermediate = decrypt_columnar_transposition(ciphertext, new_key2)
             new_plaintext = decrypt_columnar_transposition(intermediate, new_key1)
             new_score = calculate_bigram_score(new_plaintext, expected_freqs)
             
-            # --- 4. Acceptance Logic ---
             delta = new_score - current_score
             if delta < 0 or random.random() < math.exp(-delta / temp):
                 current_key1, current_key2 = new_key1, new_key2
                 current_score = new_score
                 
                 if current_score < best_state['bigram_score']:
-                    best_state = {
-                        'key1': current_key1, 'key2': current_key2, 'plaintext': new_plaintext,
-                        'bigram_score': current_score, 'ioc': calculate_ioc(new_plaintext)
-                    }
+                    # --- MODIFICATION: Only store the keys and score ---
+                    best_state['key1'] = current_key1
+                    best_state['key2'] = current_key2
+                    best_state['bigram_score'] = current_score
 
-            # --- 5. Cool Down & Progress ---
+                    # --- Re-decrypt for display to ensure consistency ---
+                    intermediate_display = decrypt_columnar_transposition(ciphertext, best_state['key2'])
+                    best_plaintext_for_display = decrypt_columnar_transposition(intermediate_display, best_state['key1'])
+                    display_text = best_plaintext_for_display.replace('\n', ' ').replace('\r', '')[:40]
+                    print(f"Score: {best_state['bigram_score']:<10.2f} | Keys: ({YELLOW}{best_state['key1']}{RESET}, {YELLOW}{best_state['key2']}{RESET}) | Text: {display_text}...")
+
             temp = initial_temp * (1.0 - (i + 1) / iterations)
-            if (i + 1) % 1000 == 0:
-                progress = ((i + 1) / iterations) * 100
-                display_text = best_state['plaintext'].replace('\n', ' ').replace('\r', '')[:30]
-                
-                # --- MODIFIED: Switched to sys.stdout.write for robust line updating ---
-                line_to_print = f"Progress: {progress:6.2f}% | Best Score: {best_state['bigram_score']:10.2f} | Best Keys: ({YELLOW}{best_state['key1']}{RESET}, {YELLOW}{best_state['key2']}{RESET}) | Text: {display_text}... "
-                sys.stdout.write(f"\r{line_to_print.ljust(120)}")
-                sys.stdout.flush()
 
         print("\n" + "="*80)
         print(f"\n{YELLOW}--- FINAL BEST RESULT ---{RESET}")
-        if best_state:
-            highlighted_decrypted = highlight_phrases(best_state['plaintext'], required_words)
+        if best_state.get('key1'):
+            # --- MODIFICATION: Final decryption from the best keys found ---
+            intermediate = decrypt_columnar_transposition(ciphertext, best_state['key2'])
+            final_plaintext = decrypt_columnar_transposition(intermediate, best_state['key1'])
+            highlighted_decrypted = highlight_phrases(final_plaintext, required_words)
             print(f"Keys: {YELLOW}({best_state['key1']}, {best_state['key2']}){RESET}")
             print(f"Bigram Score: {YELLOW}{best_state['bigram_score']:.2f}{RESET} (Lower is better)")
-            print(f"IoC: {YELLOW}{best_state['ioc']:.4f}{RESET}")
+            print(f"IoC: {YELLOW}{calculate_ioc(final_plaintext):.4f}{RESET}")
             print(f"Decrypted: {highlighted_decrypted}")
         else:
             print(f"{RED}No result found.{RESET}")
+
+    except KeyboardInterrupt:
+        print("\n\nProcess interrupted by user.")
+        if best_state.get('key1'):
+             print(f"\n{YELLOW}--- BEST RESULT FOUND BEFORE STOPPING ---{RESET}")
+             intermediate = decrypt_columnar_transposition(ciphertext, best_state['key2'])
+             final_plaintext = decrypt_columnar_transposition(intermediate, best_state['key1'])
+             highlighted_decrypted = highlight_phrases(final_plaintext, required_words)
+             print(f"Keys: {YELLOW}({best_state['key1']}, {best_state['key2']}){RESET}")
+             print(f"Bigram Score: {YELLOW}{best_state['bigram_score']:.2f}{RESET}")
+             print(f"Decrypted: {highlighted_decrypted}")
 
     except KeyboardInterrupt:
         print("\n\nProcess interrupted by user.")
@@ -481,18 +574,17 @@ def simulated_annealing_attack():
              print(f"Keys: {YELLOW}({best_state['key1']}, {best_state['key2']}){RESET}")
              print(f"Bigram Score: {YELLOW}{best_state['bigram_score']:.2f}{RESET}")
              print(f"Decrypted: {highlighted_decrypted}")
-
-
 def run():
     while True:
         print(f"\n{BLUE}Columnar Transposition Cipher Tool{RESET}")
         print(f"{GREY}" + "="*50 + RESET)
         print(f"1. {YELLOW}Dictionary Attack{RESET} (Single Transposition)")
-        print(f"2. {YELLOW}Exhaustive Attack{RESET} (Single Transposition)")
+        print(f"2. {YELLOW}Exhaustive Attack{RESET} (Single Transposition, Key Length <= 12)")
         print(f"3. {YELLOW}Direct Decrypt{RESET} (Single Transposition)")
-        print(f"4. {YELLOW}Double Exhaustive Attack{RESET} (Key Length <= 8)")
-        print(f"5. {GREEN}Simulated Annealing Attack{RESET} (Double, Any Key Length)")
-        print(f"6. {RED}Exit{RESET}")
+        print(f"4. {YELLOW}Double Exhaustive Attack{RESET} (Double Transposition, Key Length <= 8)")
+        print(f"5. {GREEN}Simulated Annealing ({RESET}{YELLOW}Single Key{RESET}{GREEN}, Key Length > 8){RESET}") # New option
+        print(f"6. {GREEN}Simulated Annealing ({RESET}{YELLOW}Double Key{RESET}{GREEN}, Any Key Length){RESET}") # Renamed
+        print(f"7. {RED}Exit{RESET}")
         
         choice = input("\nSelect an option: ")
         
@@ -500,8 +592,9 @@ def run():
         elif choice == '2': exhaustive_attack()
         elif choice == '3': direct_decrypt()
         elif choice == '4': double_exhaustive_attack()
-        elif choice == '5': simulated_annealing_attack()
-        elif choice == '6':
+        elif choice == '5': simulated_annealing_attack_single() # Call new function
+        elif choice == '6': simulated_annealing_attack_double() # Call renamed function
+        elif choice == '7':
             print(f"{BLUE}Goodbye!{RESET}")
             break
         else:
