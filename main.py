@@ -22,7 +22,8 @@ MODULE_MAP = {
     'matrix_generator': 'Matrix Generator',
     'ioc': 'ioc',
     'freq_analysis': 'freq_analysis',
-    'columnar_transposition': 'columnar_transposition'
+    'columnar_transposition': 'columnar_transposition',
+    'scytale': 'Scytale'
 }
 
 # Try to import the cipher and tool modules
@@ -141,6 +142,7 @@ def display_menu():
         (9, "Playfair Cipher", Style.GREEN, 'playfair'),
         (-2, "TRANSPOSITION CIPHER OPTIONS", Style.CYAN, None),
         (20, "Columnar Transposition Cipher", Style.GREEN, 'columnar_transposition'),
+        (21, "Scytale Cipher", Style.GREEN, 'scytale'),
         (-3, "CRYPTANALYSIS TOOLS", Style.CYAN, None),
         (10, "Matrix Generator", Style.YELLOW, 'matrix_generator'),
         (11, "Calculate IoC", Style.YELLOW, 'ioc'),
@@ -255,17 +257,18 @@ def display_about():
 A comprehensive toolkit designed for cryptanalysis and cipher breaking.
 This toolkit provides methods for brute forcing various classical ciphers
 including Vigenere, Gromark, Gronsfeld, Autokey, Hill, XOR, Caesar shift,
-modulo-based Addition and Subtraction, and Playfair.
+modulo-based Addition and Subtraction, Playfair, Columnar Transposition, Scytale Transposition,
+etc.
 
 {Style.UNDERLINE}This is a WIP project and more features will be added in the future.{Style.RESET}
 
 {Style.UNDERLINE}FEATURES:{Style.RESET}
-• Custom alphabet support
-• Word list attacks (350k English words)
-• Hill Climb and Simulated Annealing Algorithms
-• Index of Coincidence (IoC) analysis
+• Customizable alphabet support
+• Known plaintext attacks
+• Dictionary attacks, exhaustive searches, and heuristic algorithms (Simulated Annealing, Genetic Algorithm, Hill Climbing)
+• Index of Coincidence (IoC) analysis. Range defined by the user
 • Bigram Score ranking
-• Letter, Bigram and Trigram Frequency analysis
+• Saving results to .txt files
 
 {Style.UNDERLINE}DEVELOPER:{Style.RESET}
 github.com/hippie-cycling
@@ -330,6 +333,8 @@ def main():
                 run_module('playfair')
             elif choice == '20':
                 run_module('columnar_transposition')
+            elif choice == '21':
+                run_module('scytale')
             elif choice == '10':
                 run_module('matrix_generator')
             elif choice == '11':
