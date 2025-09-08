@@ -7,11 +7,12 @@ A comprehensive console-based toolkit designed for cryptanalysis and cipher brea
 This toolkit provides methods for brute forcing various classical ciphers including:
 - Autoclave/Autokey
 - Caesar
-- Columnar Transposition
+- Columnar Transposition (and double columnar transposition)
+- Sytale Transposition
 - Four-Square
 - Gromark
 - Gronsfeld
-- Hill
+- Hill (2x2 & 3x3)
 - Modular Addition/Subtraction
 - Playfair
 - Vigenere
