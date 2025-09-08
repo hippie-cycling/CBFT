@@ -1,6 +1,7 @@
 import os
 import math
 import re
+import sys  # <-- ADDED IMPORT
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from typing import List, Dict
 from functools import lru_cache
@@ -43,14 +44,19 @@ class DummyUtils:
 utils = DummyUtils()
 
 # --- COLOR CODES AND PATHS ---
-RED = '\033[38;5;196m'
-YELLOW = '\033[38;5;226m'
-GREY = '\033[38;5;242m'
-GREEN = '\033[38;5;46m'
-BLUE = '\033[38;5;39m'
+RED = '\033[38;5;88m'
+YELLOW = '\033[38;5;3m'
+GREY = '\033[38;5;238m'
+GREEN = '\033[38;5;2m'
+BLUE = '\033[38;5;21m'
 RESET = '\033[0m'
 
-data_dir = os.path.join(os.path.dirname(__file__), "data")
+# Check if running in a standard terminal or an environment that might not have __file__
+try:
+    data_dir = os.path.join(os.path.dirname(__file__), "data")
+except NameError:
+    data_dir = os.path.join(os.getcwd(), "data")
+
 dictionary_path = os.path.join(data_dir, "words_alpha.txt")
 bigram_freq_path = os.path.join(data_dir, "english_bigrams.txt")
 
@@ -371,33 +377,42 @@ def simulated_annealing_attack():
     required_words = [word.strip() for word in required_words_input.split(",")] if required_words_input else []
     
     try:
-        key_len = int(input(f"Enter exact key length to test (e.g., 10): "))
-        if key_len <= 1:
-            print(f"{RED}Key length must be greater than 1.{RESET}")
-            return
+        same_length_choice = input("Are both keys the same length? (Y/N, default: Y): ").upper() or "Y"
+        if same_length_choice == 'Y':
+            key_len = int(input(f"Enter the exact key length for both keys (e.g., 10): "))
+            if key_len <= 1:
+                print(f"{RED}Key length must be greater than 1.{RESET}")
+                return
+            key_len1, key_len2 = key_len, key_len
+        else:
+            key_len1 = int(input(f"Enter the length for the {YELLOW}first key{RESET} (e.g., 8): "))
+            key_len2 = int(input(f"Enter the length for the {YELLOW}second key{RESET} (e.g., 10): "))
+            if key_len1 <= 1 or key_len2 <= 1:
+                print(f"{RED}Key lengths must be greater than 1.{RESET}")
+                return
+        
+        default_iters = 500_000 if max(key_len1, key_len2) > 10 else 200_000
+        iterations = int(input(f"Enter number of iterations (default: {YELLOW}{default_iters:,}{RESET}): ") or str(default_iters))
+
     except ValueError:
         print(f"{RED}Invalid number.{RESET}")
         return
 
-    # --- Annealing Parameters (these can be tuned) ---
-    # Higher temp allows more "bad" moves initially, helping escape local optima.
+    # --- Annealing Parameters ---
     initial_temp = 1000.0 
-    # The factor by which temperature is multiplied each step. Closer to 1.0 means slower cooling.
-    cooling_rate = 0.99995 
-    # Total number of states to explore.
-    iterations = 200_000 if key_len <= 10 else 500_000 
 
-    print(f"Running {YELLOW}{iterations:,}{RESET} iterations with a cooling rate of {YELLOW}{cooling_rate}{RESET}...")
+    print(f"Running {YELLOW}{iterations:,}{RESET} iterations...")
     
     expected_freqs = load_bigram_frequencies(bigram_freq_path)
     if not expected_freqs:
         print(f"{RED}Bigram frequency file not found. Cannot score candidates.{RESET}")
         return
 
-    # --- 1. Initial State ---
-    cols = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"[:key_len]
-    current_key1 = "".join(random.sample(cols, len(cols)))
-    current_key2 = "".join(random.sample(cols, len(cols)))
+    # --- 1. Initial State (modified for potentially different lengths) ---
+    cols1 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"[:key_len1]
+    cols2 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"[:key_len2]
+    current_key1 = "".join(random.sample(cols1, len(cols1)))
+    current_key2 = "".join(random.sample(cols2, len(cols2)))
     
     intermediate = decrypt_columnar_transposition(ciphertext, current_key2)
     plaintext = decrypt_columnar_transposition(intermediate, current_key1)
@@ -414,7 +429,6 @@ def simulated_annealing_attack():
         for i in range(iterations):
             # --- 2. Generate Neighbor ---
             new_key1, new_key2 = current_key1, current_key2
-            # Randomly choose which key to mutate
             if random.random() < 0.5:
                 new_key1 = generate_neighbor(current_key1)
             else:
@@ -431,7 +445,6 @@ def simulated_annealing_attack():
                 current_key1, current_key2 = new_key1, new_key2
                 current_score = new_score
                 
-                # Check if this is the best solution found so far
                 if current_score < best_state['bigram_score']:
                     best_state = {
                         'key1': current_key1, 'key2': current_key2, 'plaintext': new_plaintext,
@@ -442,9 +455,12 @@ def simulated_annealing_attack():
             temp = initial_temp * (1.0 - (i + 1) / iterations)
             if (i + 1) % 1000 == 0:
                 progress = ((i + 1) / iterations) * 100
-                display_text = best_state['plaintext'].replace('\n', ' ').replace('\r', '')[:30] # Shortened text preview
-                # Added the Best Keys to the printout
-                print(f"\rProgress: {progress:6.2f}% | Best Score: {best_state['bigram_score']:10.2f} | Best Keys: ({YELLOW}{best_state['key1']}{RESET}, {YELLOW}{best_state['key2']}{RESET}) | Text: {display_text}...", end="", flush=True)
+                display_text = best_state['plaintext'].replace('\n', ' ').replace('\r', '')[:30]
+                
+                # --- MODIFIED: Switched to sys.stdout.write for robust line updating ---
+                line_to_print = f"Progress: {progress:6.2f}% | Best Score: {best_state['bigram_score']:10.2f} | Best Keys: ({YELLOW}{best_state['key1']}{RESET}, {YELLOW}{best_state['key2']}{RESET}) | Text: {display_text}... "
+                sys.stdout.write(f"\r{line_to_print.ljust(120)}")
+                sys.stdout.flush()
 
         print("\n" + "="*80)
         print(f"\n{YELLOW}--- FINAL BEST RESULT ---{RESET}")
@@ -459,7 +475,6 @@ def simulated_annealing_attack():
 
     except KeyboardInterrupt:
         print("\n\nProcess interrupted by user.")
-        # Display the best result found before stopping
         if best_state and best_state['plaintext']:
              print(f"\n{YELLOW}--- BEST RESULT FOUND BEFORE STOPPING ---{RESET}")
              highlighted_decrypted = highlight_phrases(best_state['plaintext'], required_words)
@@ -476,7 +491,7 @@ def run():
         print(f"2. {YELLOW}Exhaustive Attack{RESET} (Single Transposition)")
         print(f"3. {YELLOW}Direct Decrypt{RESET} (Single Transposition)")
         print(f"4. {YELLOW}Double Exhaustive Attack{RESET} (Key Length <= 8)")
-        print(f"5. {GREEN}Simulated Annealing Attack{RESET} (Double, Any Key Length)") # New option
+        print(f"5. {GREEN}Simulated Annealing Attack{RESET} (Double, Any Key Length)")
         print(f"6. {RED}Exit{RESET}")
         
         choice = input("\nSelect an option: ")
@@ -485,7 +500,7 @@ def run():
         elif choice == '2': exhaustive_attack()
         elif choice == '3': direct_decrypt()
         elif choice == '4': double_exhaustive_attack()
-        elif choice == '5': simulated_annealing_attack() # Call the new function
+        elif choice == '5': simulated_annealing_attack()
         elif choice == '6':
             print(f"{BLUE}Goodbye!{RESET}")
             break
