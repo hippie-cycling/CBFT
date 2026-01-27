@@ -1,6 +1,7 @@
 from collections import Counter
 from typing import List, Dict, Tuple
 import datetime
+import os
 
 # ANSI color codes for terminal output
 RED = '\033[38;5;88m'
@@ -417,3 +418,40 @@ def analyze_frequency_vg(text):
     print(f"Typical English text IoC: {YELLOW}0.0667{RESET}")
     
     print(f"\n{GREY}Analysis complete.{RESET}")
+
+def get_input_ciphertexts(prompt="Enter ciphertext"):
+    """
+    Asks user for manual input or file path.
+    Returns a LIST of strings to be processed.
+    """
+    print(f"\n{YELLOW}Input Method:{RESET}")
+    print(f"[{YELLOW}1{RESET}] Manual Entry")
+    print(f"[{YELLOW}2{RESET}] Load from .txt file (Batch Process)")
+    
+    choice = input(f"{GREEN}Select option (1/2): {RESET}").strip()
+    
+    ciphertexts = []
+    
+    if choice == '2':
+        file_path = input(f"{GREY}Enter file path (e.g. inputs.txt): {RESET}").strip()
+        # Remove quotes if user dragged and dropped file
+        file_path = file_path.replace('"', '').replace("'", "")
+        
+        if os.path.exists(file_path):
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    # Read lines, strip whitespace, ignore empty lines
+                    lines = [line.strip() for line in f.readlines()]
+                    ciphertexts = [line for line in lines if line]
+                print(f"{GREEN}Successfully loaded {len(ciphertexts)} inputs from file.{RESET}")
+            except Exception as e:
+                print(f"{RED}Error reading file: {e}{RESET}")
+        else:
+            print(f"{RED}File not found: {file_path}{RESET}")
+    else:
+        # Default to manual
+        text = input(f"{GREY}{prompt}: {RESET}").strip()
+        if text:
+            ciphertexts.append(text)
+            
+    return ciphertexts

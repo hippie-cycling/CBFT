@@ -3,6 +3,7 @@ import os
 import math
 from functools import lru_cache
 from typing import List, Dict, Tuple
+from utils.utils import get_input_ciphertexts
 
 # ANSI color codes for terminal output
 RED = '\033[38;5;88m'
@@ -10,6 +11,7 @@ YELLOW = '\033[38;5;3m'
 GREY = '\033[38;5;238m'
 RESET = '\033[0m'
 GREEN = '\033[38;5;2m'
+BLUE = '\033[34m'
 
 # Path for our bigram frequency file
 data_dir = os.path.join(os.path.dirname(__file__), "data")
@@ -158,15 +160,19 @@ def save_caesar_results(filename, results):
 
 def run():
     """Main function to run the Caesar decipher CLI."""
-    print(f"{RED}============================={RESET}")
-    print(f"{RED}= Caesar Shift Cipher Tool  ={RESET}")
-    print(f"{RED}============================={RESET}")
+    print(f"{GREY}================================{RESET}")
+    print(f"{RED}= CAESAR SHIFT SOLVER  ={RESET}")
+    print(f"{GREY}================================{RESET}")
     print(f"{GREY}This tool decrypts a Caesar cipher using a specific key or by brute force.{RESET}")
     print(f"{GREY}-{RESET}" * 60)
     
     # Get user inputs
-    ciphertext = input(f"Enter the ciphertext: {GREEN}").upper()
-    
+    ciphertexts = get_input_ciphertexts(prompt="Enter the ciphertext")
+
+    if not ciphertexts:
+        print(f"{RED}No input provided. Returning to menu.{RESET}")
+        return
+
     alphabet_input = input(f"{RESET}Enter custom alphabet (press Enter for default {YELLOW}A-Z{RESET}): {GREEN}").upper()
     alphabet = alphabet_input if alphabet_input else "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
     print(f"{RESET}Using alphabet: {YELLOW}{alphabet}{RESET}")
@@ -179,42 +185,33 @@ def run():
     mode_choice = input(f"Enter your choice (1 or 2): {GREEN}")
     print(f"{RESET}{GREY}-{RESET}" * 60)
 
-    if mode_choice == '1':
-        # Get the specific shift value from the user
-        while True:
-            try:
-                shift_input = input(f"{RESET}Enter the shift value (e.g., 3 or -3): {GREEN}")
-                shift = int(shift_input)
-                # Perform single decryption
-                decrypted_text = caesar_decipher(ciphertext, shift, alphabet)
-                # Display the result
-                print(f"\n{YELLOW}Ciphertext:{RESET} {ciphertext.lower()}")
-                print(f"{YELLOW}Shift Value:{RESET} {shift}")
-                print(f"{YELLOW}Decrypted Text:{RESET} {decrypted_text}")
-                break
-            except ValueError:
-                print(f"{RED}Invalid input. Please enter an integer.{RESET}")
-            except (KeyboardInterrupt, EOFError):
-                print(f"\n{GREY}Program exited.{RESET}")
-                sys.exit(0)
+# --- LOOP THROUGH EACH INPUT ---
+    for i, current_text in enumerate(ciphertexts):
+        current_text = current_text.upper()
+        display_sample = current_text[:40] + "..." if len(current_text) > 40 else current_text
+        
+        print(f"\n{BLUE}=== Processing Input #{i+1}: {display_sample} ==={RESET}")
 
-    elif mode_choice == '2':
-        results = brute_force_caesar(ciphertext, alphabet)
-        print(f"{YELLOW}--- Top 10 Brute-Force Results (Best First) ---{RESET}")
-        for i, result in enumerate(results[:10]):
-            color = GREEN if i == 0 else ""
-            print(f"{color}Shift: {result['shift']:<2} | IoC: {result['ioc']:.4f} | Bigram Score: {result['bigram_score']:.2f} | Text: {result['text'].upper()}{RESET}")
-
-        # Ask user to save results
-        save_choice = input(f"\n{GREY}Save all {len(results)} results to a file? ({YELLOW}Y/N{RESET}): {GREEN}").upper()
-        if save_choice == 'Y':
-            filename = input(f"{RESET}Enter filename (default: caesar_results.txt): {GREEN}") or "caesar_results.txt"
-            save_caesar_results(filename, results)
-    
-    else:
-        print(f"{RED}Invalid choice. Please run the script again and select 1 or 2.{RESET}")
-
-    print(f"\n{GREY}Program finished.{RESET}")
+        if mode_choice == '1':
+            while True:
+                try:
+                    shift_input = input(f"{RESET}Enter shift (e.g. 3): {GREEN}")
+                    shift = int(shift_input)
+                    decrypted = caesar_decipher(current_text, shift, alphabet)
+                    print(f"{YELLOW}Result:{RESET} {decrypted}")
+                    break
+                except ValueError:
+                    print(f"{RED}Invalid integer.{RESET}")
+                    
+        elif mode_choice == '2':
+            results = brute_force_caesar(current_text, alphabet)
+            print(f"{YELLOW}--- Top 3 Results ---{RESET}")
+            for res in results[:3]:
+                print(f"Shift {res['shift']:<2} | IoC: {res['ioc']:.4f} | Bigram: {res['bigram_score']:.2f} | {res['text'][:50]}...")
+            
+            # Optional: Auto-save functionality could go here
+            
+    print(f"\n{GREY}Batch processing complete.{RESET}")
 
 if __name__ == "__main__":
     # Create data directory and dummy bigram file if they don't exist
