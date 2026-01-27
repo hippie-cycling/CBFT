@@ -23,7 +23,8 @@ MODULE_MAP = {
     'ioc': 'ioc',
     'freq_analysis': 'freq_analysis',
     'columnar_transposition': 'columnar_transposition',
-    'scytale': 'Scytale'
+    'scytale': 'Scytale',
+    'permutation_solver': 'permutation_solver'
 }
 
 # Try to import the cipher and tool modules
@@ -143,6 +144,7 @@ def display_menu():
         (-2, "TRANSPOSITION CIPHER OPTIONS", Style.CYAN, None),
         (20, "Columnar Transposition Cipher", Style.GREEN, 'columnar_transposition'),
         (21, "Scytale Cipher", Style.GREEN, 'scytale'),
+        (22, "Matrix Permutation Solver", Style.GREEN, 'permutation_solver'),
         (-3, "CRYPTANALYSIS TOOLS", Style.CYAN, None),
         (10, "Matrix Generator", Style.YELLOW, 'matrix_generator'),
         (11, "Calculate IoC", Style.YELLOW, 'ioc'),
@@ -255,7 +257,7 @@ def display_about():
 {Style.BOLD}{Style.CYAN}CIPHER BRUTE FORCE TOOLKIT{Style.RESET}
 
 A comprehensive toolkit designed for cryptanalysis and cipher breaking.
-This toolkit provides methods for brute forcing various classical ciphers
+This toolkit provides methods for direct decryption and brute forcing various classical ciphers
 including Vigenere, Gromark, Gronsfeld, Autokey, Hill, XOR, Caesar shift,
 modulo-based Addition and Subtraction, Playfair, Columnar Transposition, Scytale Transposition,
 etc.
@@ -335,6 +337,8 @@ def main():
                 run_module('columnar_transposition')
             elif choice == '21':
                 run_module('scytale')
+            elif choice == '22':
+                run_module('permutation_solver')
             elif choice == '10':
                 run_module('matrix_generator')
             elif choice == '11':
