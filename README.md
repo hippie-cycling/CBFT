@@ -1,48 +1,56 @@
-# CBFT [Cipher Brute Force Toolkit]
+# Cipher Brute Force Toolkit (CBFT)
 
-A comprehensive console-based toolkit designed for cryptanalysis and cipher breaking.
+A comprehensive, modular command-line toolkit for classical cryptanalysis, cipher breaking, and automated brute-forcing. Designed for CTF (Capture The Flag) challenges, cryptography enthusiasts, and logic puzzle solvers. 
 
-<img width="1380" height="1248" alt="image" src="https://github.com/user-attachments/assets/be70b9e5-d268-4dce-8639-eb97285c1798" />
+![CBFT Interface Concept](https://img.shields.io/badge/Python-3.8+-blue.svg)
+![License](https://img.shields.io/badge/License-MIT-green.svg)
 
-This toolkit provides methods for brute forcing various classical ciphers including:
-- Autoclave/Autokey
-- Caesar
-- Columnar Transposition (and double columnar transposition)
-- Sytale Transposition
-- Four-Square
-- Gromark
-- Gronsfeld
-- Hill (2x2 & 3x3)
-- Modular Addition/Subtraction
-- Playfair
-- Vigenere
-- XOR
+## 🚀 Features
 
-It also provides some basic tools such as:
-- Frequency Analysis
-- Index of Coincidence (IoC)
-- String Matrix Generator
+CBFT is divided into four main categories, accessible via an interactive retro-style terminal launcher.
 
-More ciphers and tools to be implemented, **WIP**
+### 1. Substitution Ciphers
+Tools to encrypt, decrypt, and brute-force classical substitution ciphers:
+* **Caesar Cipher**
+* **Vigenère Cipher**
+* **Playfair Cipher** (Includes Memetic Algorithm optimization)
+* **Affine Cipher**
+* **Hill Cipher**
+* **Autoclave Cipher**
+* **Gronsfeld Cipher**
+* **Gromark Cipher**
+* **Polybius Square**
+* **Bifid Cipher**
+* **XOR Cipher**
+* **Modular Add/Sub**
 
-## Features include:
+### 2. Transposition Ciphers
+Tools for ciphers that rearrange the plaintext without changing the alphabet:
+* **Columnar Transposition**
+* **Scytale Cipher**
+* **Rail Fence Cipher**
 
-- Customizable alphabet support.
-- Known Plaintext list-based attack.
-- Bruteforce using 450k English-Latin words.
-- Multiple attack modes for various ciphers, including dictionary attacks, exhaustive searches, and heuristic algorithms (Simulated Annealing, Genetic Algorithm, Hill Climbing).
-  
-  Example: Kryptos K2 cracked in less than 60s using simulated annealing.
-  <img width="1521" height="359" alt="image" src="https://github.com/user-attachments/assets/71e5c4b6-9aef-4089-9812-4c2e79099316" />
-  
-- XOR, Modulo addition and subtraction decryptor and brute forcer.
-- IoC-based analysis. Range defined by the user.
-- Frequency-based analysis. Sensibility defined by the user.
-- Generation of all possible n x m matrices.
-- Saving results to files.
+### 3. Advanced Cryptanalysis & Heuristics
+The core strength of the CBFT lies in its algorithmic approaches to cracking ciphers without knowing the key:
+* **Simulated Annealing (Substitution):** Cracks completely random Simple Substitution ciphers from scratch using thermal cooling and N-gram scoring.
+* **Hill Climbing (Transposition):** Unscrambles complex columnar transpositions purely by optimizing bigram fitness.
+* **Vigenère Auto-Solver:** Fully automated frequency analysis and key deduction for Vigenère ciphers.
+* **Word Pattern Isomorphism:** Instantly solves space-preserving substitution ciphers by mapping word shapes (e.g., `1-2-2-1-3-4`) against a dictionary (e.g., `ATTACK`).
+* **Automated Crib Dragging:** "Drags" a suspected plaintext word across a ciphertext to reveal underlying key snippets.
+* **Kasiski Examination:** Analyzes polyalphabetic ciphers to find repeating substrings and deduce the key length.
+* **Friedman Test:** Mathematically estimates polyalphabetic key lengths using the Index of Coincidence (IoC).
+* **Matrix Permutation Solver:** Generates and solves matrix-based permutations.
 
-To run the program, download the repository and launch main.py.
+### 4. Utilities
+* **Calculate IoC (Index of Coincidence):** Determines whether a cipher is monoalphabetic or polyalphabetic.
+* **Frequency Analysis:** Plots character deviations against standard English text.
+* **Text Formatter:** Cleans and formats ciphertexts.
+* **Matrix Generator:** Dumps all possible `n x m` permutations of a ciphertext string.
 
-## License
+---
 
-[MIT](https://choosealicense.com/licenses/mit/)
+## 🛠️ Installation
+
+1. Clone the repository to your local machine:
+   ```bash
+   git clone [https://github.com/hippie-cycling/CBFT.git](https://github.com/hippie-cycling/CBFT.git)
