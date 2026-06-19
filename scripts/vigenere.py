@@ -7,6 +7,15 @@ import random
 import math
 from utils.utils import get_input_ciphertexts  # Imported from your utils
 
+# --- KASISKI IMPORT ---
+try:
+    from scripts.kasiski import analyze_kasiski
+except ImportError:
+    try:
+        from kasiski import analyze_kasiski
+    except ImportError:
+        analyze_kasiski = None
+
 # --- DUMMY UTILS CLASS (Maintained for standalone scoring compatibility if needed) ---
 class DummyUtils:
     def calculate_ioc(self, text: str) -> float:
@@ -125,14 +134,19 @@ def decrypt_vigenere(ciphertext: str, key: str, alphabet_str: str) -> str:
             plaintext.append(char.lower())
     return ''.join(plaintext)
 
-def load_dictionary(file_path: str, alphabet_str: str, min_length: int = 3, max_length: int = 15) -> List[str]:
+def load_dictionary(file_path: str, alphabet_str: str, min_length: int = 3, max_length: int = 15, allowed_lengths: List[int] = None) -> List[str]:
     alphabet, _ = get_alphabet(alphabet_str)
     alphabet_set = set(alphabet)
     try:
         with open(file_path, 'r', encoding='utf-8') as file:
-            return [word.strip().upper() for word in file
-                    if set(word.strip().upper()).issubset(alphabet_set)
-                    and min_length <= len(word.strip()) <= max_length]
+            if allowed_lengths:
+                return [word.strip().upper() for word in file
+                        if set(word.strip().upper()).issubset(alphabet_set)
+                        and len(word.strip()) in allowed_lengths]
+            else:
+                return [word.strip().upper() for word in file
+                        if set(word.strip().upper()).issubset(alphabet_set)
+                        and min_length <= len(word.strip()) <= max_length]
     except FileNotFoundError:
         print(f"{RED}Error: {file_path} not found{RESET}")
         return []
@@ -152,18 +166,27 @@ def highlight_phrases(text: str, phrases: List[str]) -> str:
 # --- ATTACK FUNCTIONS ---
 
 def process_batch(args: Tuple) -> List[Dict]:
-    word_batch, ciphertext, target_phrases, alphabet_str, expected_freqs = args
+    word_batch, ciphertext, target_phrases, alphabet_str, expected_freqs, min_ioc, max_ioc = args
     results = []
+    
     for word in word_batch:
         plaintext = decrypt_vigenere(ciphertext, word, alphabet_str)
         is_phrase_match = contains_all_phrases(plaintext, target_phrases)
+        
+        # --- Fast IoC calculation first ---
         ioc = utils.calculate_ioc(plaintext)
-        bigram_score = calculate_bigram_score(plaintext, expected_freqs)
-        results.append({
-            'key': word, 'plaintext': plaintext, 'ioc': ioc, 'bigram_score': bigram_score,
-            'is_phrase_match': is_phrase_match,
-            'matched_phrases': target_phrases if is_phrase_match else []
-        })
+        
+        # Only proceed to expensive bigram scoring if it matches a phrase or has English-like IoC
+        if is_phrase_match or (min_ioc <= ioc <= max_ioc):
+            bigram_score = calculate_bigram_score(plaintext, expected_freqs)
+            
+            # Only append valid results.
+            results.append({
+                'key': word, 'plaintext': plaintext, 'ioc': ioc, 'bigram_score': bigram_score,
+                'is_phrase_match': is_phrase_match,
+                'matched_phrases': target_phrases if is_phrase_match else []
+            })
+            
     return results
 
 def batch_words(words: List[str], batch_size: int = 500) -> List[List[str]]:
@@ -178,8 +201,19 @@ def run_dictionary_attack(ciphertext: str, alphabet_str: str, expected_freqs: Di
     specific_keys = config.get('specific_keys', [])
     min_ioc = config.get('min_ioc', 0.065)
     max_ioc = config.get('max_ioc', 0.070)
+    allowed_lengths = config.get('allowed_lengths', None)
     
     all_results = []
+    
+    # --- Run Kasiski to determine key length ---
+    if config.get('use_kasiski') and analyze_kasiski:
+        print(f"\n{CYAN}Running Kasiski Analysis to determine key length...{RESET}")
+        likely_lengths = analyze_kasiski(ciphertext)
+        if likely_lengths:
+            allowed_lengths = likely_lengths[:3] # Test the top 3 most likely lengths
+            print(f"{GREEN}Filtering dictionary to words of length: {allowed_lengths}{RESET}")
+        else:
+            print(f"{YELLOW}Kasiski did not find reliable lengths. Testing all dictionary words.{RESET}")
     
     # 1. Try Specific Keys first
     if specific_keys:
@@ -188,16 +222,17 @@ def run_dictionary_attack(ciphertext: str, alphabet_str: str, expected_freqs: Di
             plaintext = decrypt_vigenere(ciphertext, key, alphabet_str)
             is_phrase_match = contains_all_phrases(plaintext, target_phrases)
             ioc = utils.calculate_ioc(plaintext)
-            bigram_score = calculate_bigram_score(plaintext, expected_freqs)
-            all_results.append({
-                'key': key, 'plaintext': plaintext, 'ioc': ioc, 'bigram_score': bigram_score,
-                'is_phrase_match': is_phrase_match, 'matched_phrases': target_phrases if is_phrase_match else []
-            })
-            if is_phrase_match: print(f"Phrase match found with specific key: {RED}{key}{RESET}")
+            if is_phrase_match or (min_ioc <= ioc <= max_ioc):
+                bigram_score = calculate_bigram_score(plaintext, expected_freqs)
+                all_results.append({
+                    'key': key, 'plaintext': plaintext, 'ioc': ioc, 'bigram_score': bigram_score,
+                    'is_phrase_match': is_phrase_match, 'matched_phrases': target_phrases if is_phrase_match else []
+                })
+                if is_phrase_match: print(f"Phrase match found with specific key: {RED}{key}{RESET}")
             
     # 2. Load Dictionary
     print(f"{YELLOW}Loading dictionary for alphabet {alphabet_str[:10]}...{RESET}")
-    dictionary = load_dictionary(dictionary_path, alphabet_str)
+    dictionary = load_dictionary(dictionary_path, alphabet_str, allowed_lengths=allowed_lengths)
     
     if dictionary:
         word_batches = batch_words(dictionary)
@@ -208,7 +243,8 @@ def run_dictionary_attack(ciphertext: str, alphabet_str: str, expected_freqs: Di
         start_time = time.time()
         
         with ProcessPoolExecutor(max_workers=num_processes) as executor:
-            futures = [executor.submit(process_batch, (b, ciphertext, target_phrases, alphabet_str, expected_freqs)) for b in word_batches]
+            # Pass min_ioc and max_ioc into the tuple
+            futures = [executor.submit(process_batch, (b, ciphertext, target_phrases, alphabet_str, expected_freqs, min_ioc, max_ioc)) for b in word_batches]
             for i, future in enumerate(as_completed(futures)):
                 all_results.extend(future.result())
                 if total_batches > 10: # Only print update if meaningful
@@ -216,7 +252,7 @@ def run_dictionary_attack(ciphertext: str, alphabet_str: str, expected_freqs: Di
         print(f"\nDictionary search complete in {time.time() - start_time:.2f} seconds.{RESET}")
     
     # 3. Filter and Rank
-    filtered_results = [r for r in all_results if r['is_phrase_match'] or (min_ioc <= r['ioc'] <= max_ioc)]
+    filtered_results = all_results 
     
     filtered_results.sort(key=lambda x: (
         0 if x['is_phrase_match'] else 1, 
@@ -383,6 +419,16 @@ def run():
             
             max_ioc = input(f"Enter max IoC (default: {YELLOW}0.070{RESET}): ")
             config['max_ioc'] = float(max_ioc) if max_ioc else 0.070
+            
+            # --- NEW PROMPT FOR KEY LENGTH FILTERING ---
+            len_filter = input(f"Enter exact key lengths to test (comma-separated), '{YELLOW}K{RESET}' to auto-detect with Kasiski, or blank for all: ").strip().upper()
+            if len_filter == 'K':
+                config['use_kasiski'] = True
+            elif len_filter:
+                try:
+                    config['allowed_lengths'] = [int(x.strip()) for x in len_filter.split(",")]
+                except ValueError:
+                    print(f"{RED}Invalid lengths. Will test all dictionary words.{RESET}")
             
         elif mode == '3':
             try:
