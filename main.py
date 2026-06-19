@@ -20,8 +20,8 @@ MODULE_MAP = {
     'caesar': 'caesar',
     'playfair': 'playfair',
     'affine': 'affine',
-    'polybius': 'polybius',                                # NEW
-    'bifid': 'bifid',                                      # NEW
+    'polybius': 'polybius',
+    'bifid': 'bifid',
     'rail_fence': 'rail_fence',
     'columnar_transposition': 'columnar_transposition',
     'scytale': 'Scytale',
@@ -35,8 +35,9 @@ MODULE_MAP = {
     'crib_drag': 'crib_drag',
     'simulated_annealing': 'simulated_annealing',      
     'hill_climbing_transposition': 'hill_climbing_transposition',
-    'vigenere_auto_solver': 'vigenere_auto_solver',        # NEW
-    'text_formatter': 'text_formatter'                     # NEW
+    'vigenere_auto_solver': 'vigenere_auto_solver',
+    'text_formatter': 'text_formatter',
+    'keyword_alphabet': 'keyword_alphabet'                 # NEW
 }
 
 # Try to import the cipher and tool modules
@@ -138,6 +139,7 @@ def display_menu():
         (41, "Frequency Analysis", Style.GRAY, 'freq_analysis'),
         (42, "Matrix Generator", Style.GRAY, 'matrix_generator'),
         (43, "Text Formatter", Style.GRAY, 'text_formatter'),
+        (44, "Keyword Alphabet Generator", Style.GRAY, 'keyword_alphabet'), # NEW
         (-5, "SYSTEM", Style.CYAN, None),
         ('A', "About", Style.WHITE, 'about'),
         ('E', "Exit", Style.RED, 'exit')
@@ -204,7 +206,8 @@ def main():
                     '20': 'columnar_transposition', '21': 'scytale', '22': 'rail_fence', '23': 'permutation_solver',
                     '30': 'vigenere_auto_solver', '31': 'simulated_annealing', '32': 'hill_climbing_transposition',
                     '33': 'pattern_isomorphism', '34': 'crib_drag', '35': 'kasiski', '36': 'friedman_test',
-                    '40': 'ioc', '41': 'freq_analysis', '42': 'matrix_generator', '43': 'text_formatter'
+                    '40': 'ioc', '41': 'freq_analysis', '42': 'matrix_generator', '43': 'text_formatter',
+                    '44': 'keyword_alphabet'
                 }
                 if choice in mapping:
                     run_module(mapping[choice])

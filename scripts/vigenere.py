@@ -28,6 +28,8 @@ class DummyUtils:
                 f.write("=====================================\n\n")
                 for result in results:
                     f.write(f"Key: {result['key']}\n")
+                    if 'alphabet_used' in result:
+                        f.write(f"Alphabet: {result['alphabet_used']}\n")
                     if 'ioc' in result:
                         f.write(f"IoC Score: {result.get('ioc', 0):.4f}\n")
                     if 'bigram_score' in result:
@@ -194,7 +196,7 @@ def run_dictionary_attack(ciphertext: str, alphabet_str: str, expected_freqs: Di
             if is_phrase_match: print(f"Phrase match found with specific key: {RED}{key}{RESET}")
             
     # 2. Load Dictionary
-    print(f"{YELLOW}Loading dictionary...{RESET}")
+    print(f"{YELLOW}Loading dictionary for alphabet {alphabet_str[:10]}...{RESET}")
     dictionary = load_dictionary(dictionary_path, alphabet_str)
     
     if dictionary:
@@ -298,11 +300,13 @@ def run_direct_decrypt(ciphertext: str, alphabet_str: str, config: Dict):
     key = config.get('key', '')
     if not key:
         print(f"{RED}Key not provided.{RESET}")
-        return
+        return []
     
     plaintext = decrypt_vigenere(ciphertext, key, alphabet_str)
     print(f"\nKey: {YELLOW}{key}{RESET}")
     print(f"Plaintext: {plaintext}")
+    
+    return [{'key': key, 'plaintext': plaintext}]
 
 # --- MAIN APPLICATION ---
 
@@ -311,82 +315,124 @@ def run():
     print(f"{RED}VIGENERE SOLVER{RESET}")
     print(f"{GREY}================================{RESET}")
     
-    # 1. Get Inputs (Manual or File)
+    # 1. Get Initial Inputs
     ciphertexts = get_input_ciphertexts(prompt="Enter ciphertext")
     if not ciphertexts:
         print(f"{RED}No input provided.{RESET}")
         return
 
-    # 2. Get Alphabet (Global Setting)
-    alphabet_input = input(f"Enter alphabet (default: {RED}A-Z{RESET}): ").upper()
-    alphabet_str = alphabet_input if alphabet_input else "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    alphabet_input = input(f"Enter alphabet(s) separated by commas (default: {RED}A-Z{RESET}): ").upper()
+    if alphabet_input:
+        alphabet_strs = [a.strip() for a in alphabet_input.split(",") if a.strip()]
+    else:
+        alphabet_strs = ["ABCDEFGHIJKLMNOPQRSTUVWXYZ"]
 
-    # 3. Load Data
     expected_freqs = load_bigram_frequencies(bigram_freq_path)
     if not expected_freqs:
         print(f"{RED}Warning: Bigram file not found.{RESET}")
 
-    # 4. Select Mode (Global Setting)
-    print(f"\n{GREY}Select Attack Mode for {len(ciphertexts)} input(s):{RESET}")
-    print(f"  ({YELLOW}1{RESET}) Direct Decryption (Known Key)")
-    print(f"  ({YELLOW}2{RESET}) Dictionary Attack (Key is an English word)")
-    print(f"  ({YELLOW}3{RESET}) Simulated Annealing (Unknown Key of known length)")
-    mode = input(">> ").strip()
+    # 2. Main Persistent Loop
+    while True:
+        print(f"\n{GREY}Current Configuration:{RESET}")
+        print(f"  Ciphertexts loaded: {YELLOW}{len(ciphertexts)}{RESET}")
+        print(f"  Active Alphabet(s): {YELLOW}{', '.join(alphabet_strs)}{RESET}")
+        
+        print(f"\n{GREY}Select Action:{RESET}")
+        print(f"  ({YELLOW}1{RESET}) Direct Decryption (Known Key)")
+        print(f"  ({YELLOW}2{RESET}) Dictionary Attack (Key is an English word)")
+        print(f"  ({YELLOW}3{RESET}) Simulated Annealing (Unknown Key of known length)")
+        print(f"  ({YELLOW}C{RESET}) Change Ciphertext(s)")
+        print(f"  ({YELLOW}A{RESET}) Change/Add Alphabet(s)")
+        print(f"  ({YELLOW}Q{RESET}) Quit to Main Menu")
+        mode = input(">> ").strip().upper()
 
-    # 5. Gather Configuration ONCE
-    config = {}
-    
-    if mode == '1':
-        config['key'] = input("Enter the decryption key: ").upper().strip()
-        
-    elif mode == '2':
-        # Config for Dictionary Attack
-        phrases_in = input("Enter required plaintext words/phrases (comma-separated, optional): ").upper()
-        config['target_phrases'] = [p.strip() for p in phrases_in.split(",")] if phrases_in else []
-        
-        keys_in = input("Enter specific keys to prioritize (comma-separated, optional): ").upper()
-        config['specific_keys'] = [k.strip() for k in keys_in.split(",")] if keys_in else []
-        
-        min_ioc = input(f"Enter min IoC (default: {YELLOW}0.065{RESET}): ")
-        config['min_ioc'] = float(min_ioc) if min_ioc else 0.065
-        
-        max_ioc = input(f"Enter max IoC (default: {YELLOW}0.070{RESET}): ")
-        config['max_ioc'] = float(max_ioc) if max_ioc else 0.070
-        
-    elif mode == '3':
-        # Config for Annealing
-        try:
-            kl = input("Enter exact key length: ")
-            config['key_length'] = int(kl)
-            iters = input(f"Enter iterations (default: {YELLOW}200,000{RESET}): ")
-            config['iterations'] = int(iters) if iters else 200000
-        except ValueError:
-            print(f"{RED}Invalid integer input.{RESET}")
-            return
+        if mode == 'Q':
+            print(f"{YELLOW}Returning to main menu...{RESET}")
+            break
             
-    else:
-        print(f"{RED}Invalid mode selected.{RESET}")
-        return
+        elif mode == 'C':
+            new_ciphers = get_input_ciphertexts(prompt="Enter new ciphertext")
+            if new_ciphers:
+                ciphertexts = new_ciphers
+            continue
+            
+        elif mode == 'A':
+            new_alphas = input(f"Enter alphabet(s) separated by commas: ").upper()
+            if new_alphas:
+                alphabet_strs = [a.strip() for a in new_alphas.split(",") if a.strip()]
+            continue
+            
+        elif mode not in ['1', '2', '3']:
+            print(f"{RED}Invalid selection.{RESET}")
+            continue
 
-    # 6. Execute Batch
-    print(f"\n{BLUE}=== Starting Batch Processing ({len(ciphertexts)} items) ==={RESET}")
-    
-    for i, ciphertext in enumerate(ciphertexts):
-        # Display Header
-        display_sample = ciphertext.replace("\n", "")[:40]
-        print(f"\n{GREY}Input #{i+1}: {display_sample}...{RESET}")
-        
-        # Run selected mode
+        # 3. Gather Configuration for specific attack
+        config = {}
         if mode == '1':
-            run_direct_decrypt(ciphertext, alphabet_str, config)
-        elif mode == '2':
-            results = run_dictionary_attack(ciphertext, alphabet_str, expected_freqs, config)
-            # Optional: Save individual results logic could be added here
-        elif mode == '3':
-            run_simulated_annealing_attack(ciphertext, alphabet_str, expected_freqs, config)
+            config['key'] = input("Enter the decryption key: ").upper().strip()
             
-    print(f"\n{GREY}Batch processing complete.{RESET}")
-    input(f"{YELLOW}Press Enter to return to menu...{RESET}")
+        elif mode == '2':
+            phrases_in = input("Enter required plaintext words/phrases (comma-separated, optional): ").upper()
+            config['target_phrases'] = [p.strip() for p in phrases_in.split(",")] if phrases_in else []
+            
+            keys_in = input("Enter specific keys to prioritize (comma-separated, optional): ").upper()
+            config['specific_keys'] = [k.strip() for k in keys_in.split(",")] if keys_in else []
+            
+            min_ioc = input(f"Enter min IoC (default: {YELLOW}0.065{RESET}): ")
+            config['min_ioc'] = float(min_ioc) if min_ioc else 0.065
+            
+            max_ioc = input(f"Enter max IoC (default: {YELLOW}0.070{RESET}): ")
+            config['max_ioc'] = float(max_ioc) if max_ioc else 0.070
+            
+        elif mode == '3':
+            try:
+                kl = input("Enter exact key length: ")
+                config['key_length'] = int(kl)
+                iters = input(f"Enter iterations (default: {YELLOW}200,000{RESET}): ")
+                config['iterations'] = int(iters) if iters else 200000
+            except ValueError:
+                print(f"{RED}Invalid integer input.{RESET}")
+                continue
+
+        # 4. Execute Batch for every cipher across every alphabet
+        print(f"\n{BLUE}=== Starting Batch Processing ({len(ciphertexts)} item(s), {len(alphabet_strs)} alphabet(s)) ==={RESET}")
+        
+        for i, ciphertext in enumerate(ciphertexts):
+            display_sample = ciphertext.replace("\n", "")[:40]
+            print(f"\n{GREY}Input #{i+1}: {display_sample}...{RESET}")
+            
+            all_results_for_input = []
+            
+            for alphabet_str in alphabet_strs:
+                if len(alphabet_strs) > 1:
+                    print(f"\n{CYAN}>>> Testing Alphabet: {alphabet_str} <<<{RESET}")
+                    
+                results = None
+                if mode == '1':
+                    results = run_direct_decrypt(ciphertext, alphabet_str, config)
+                elif mode == '2':
+                    results = run_dictionary_attack(ciphertext, alphabet_str, expected_freqs, config)
+                elif mode == '3':
+                    results = run_simulated_annealing_attack(ciphertext, alphabet_str, expected_freqs, config)
+                    
+                if results:
+                    # Tag the results with the alphabet used
+                    for r in results:
+                        r['alphabet_used'] = alphabet_str
+                    all_results_for_input.extend(results)
+                    
+            # 5. File Saving Logic (Across all alphabets for this input)
+            if all_results_for_input:
+                save = input(f"\nSave {len(all_results_for_input)} results for Input #{i+1} to a .txt file? ({YELLOW}Y/N{RESET}): ").strip().upper()
+                if save == 'Y':
+                    filename = input(f"Enter filename (default: vigenere_results_{i+1}.txt): ").strip()
+                    if not filename:
+                        filename = f"vigenere_results_{i+1}.txt"
+                    if not filename.endswith('.txt'):
+                        filename += '.txt'
+                    utils.save_results_to_file(all_results_for_input, filename)
+                
+        print(f"\n{GREY}Batch processing complete.{RESET}")
 
 if __name__ == "__main__":
     if not os.path.exists(data_dir):
