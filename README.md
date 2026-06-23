@@ -1,12 +1,12 @@
 # Cipher Cracker Toolkit (CCT)
 
-A comprehensive, modular command-line toolkit for classical cryptanalysis, cipher breaking, and automated brute-forcing. Designed for CTF (Capture The Flag) challenges, cryptography enthusiasts, and logic puzzle solvers. 
+A comprehensive, powerful command-line toolkit for classical cryptanalysis, cipher breaking, and automated brute-forcing. Designed for cryptography enthusiasts. 
 
 ![License](https://img.shields.io/badge/License-MIT-green.svg)
 
-## 🚀 Features
+##Features
 
-CCT is divided into four main categories, accessible via an interactive retro-style terminal launcher.
+CCT is divided into four main categories, accessible via an interactive terminal launcher.
 
 ### 1. Substitution Ciphers
 Tools to encrypt, decrypt, and brute-force classical substitution ciphers:
@@ -36,7 +36,7 @@ Tools for ciphers that rearrange the plaintext without changing the alphabet:
 ### 3. Advanced Cryptanalysis & Heuristics
 The core strength of the CCT lies in its algorithmic approaches to cracking ciphers without knowing the key. Recent updates include a **Dynamic Fitness Engine** supporting Pure N-Gram, Pure IoC Tolerance, and Combined scoring to actively strip away layers of Double Ciphers.
 
-* **Simulated Annealing (SA):** Cracks completely random Simple Substitution and complex Polyalphabetic ciphers from scratch using thermal cooling, N-gram scoring, and live Top 5 plaintext previews.
+* **Simulated Annealing (SA):** Cracks completely random Simple Substitution and complex Polyalphabetic ciphers from scratch using thermal cooling, with N-gram/IoC scoring.
 * **Genetic Algorithms (GA):** Breeds and mutates generations of keys to crack highly complex systems like the Gromark Cipher.
 * **Hill Climbing:** Unscrambles complex transpositions and polyalphabetic sequences by optimizing bigram fitness.
 * **Vigenère Auto-Solver:** Fully automated frequency analysis and key deduction for standard Vigenère ciphers.
@@ -55,7 +55,7 @@ The core strength of the CCT lies in its algorithmic approaches to cracking ciph
 
 ---
 
-## 🛠️ Installation
+## Installation
 
 1. Clone the repository to your local machine:
    ```bash
