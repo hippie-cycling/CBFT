@@ -5,6 +5,7 @@ from functools import lru_cache
 import os
 import random
 import math
+from collections import Counter
 from utils.utils import get_input_ciphertexts  # Imported from your utils
 
 # --- KASISKI IMPORT ---
@@ -66,6 +67,7 @@ GREY = '\033[90m'
 data_dir = os.path.join(os.path.dirname(__file__), "data")
 dictionary_path = os.path.join(data_dir, "words_alpha.txt")
 bigram_freq_path = os.path.join(data_dir, "english_bigrams.txt")
+trigram_freq_path = os.path.join(data_dir, "english_trigrams.txt")
 
 # --- SCORING FUNCTIONS ---
 
@@ -103,6 +105,41 @@ def calculate_bigram_score(text: str, expected_freqs: Dict[str, float]) -> float
     for bigram, expected_prob in expected_freqs.items():
         observed_count = observed_counts.get(bigram, 0)
         expected_count = expected_prob * total_bigrams
+        difference = observed_count - expected_count
+        chi_squared_score += (difference * difference) / max(expected_count, floor)
+    return chi_squared_score
+
+# --- NEW N-GRAM FUNCTIONS (Exclusively for Simulated Annealing) ---
+@lru_cache(maxsize=None)
+def load_ngram_frequencies(file_path: str) -> Dict[str, float]:
+    freqs = {}
+    if not os.path.exists(file_path): return {}
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                parts = line.strip().split()
+                if len(parts) == 2: freqs[parts[0].upper()] = float(parts[1])
+        total = sum(freqs.values())
+        if total > 0:
+            for ngram in freqs: freqs[ngram] /= total
+        return freqs
+    except FileNotFoundError:
+        return {}
+
+def calculate_ngram_score(text: str, expected_freqs: Dict[str, float], n: int) -> float:
+    if not expected_freqs: return float('inf')
+    text = "".join(char for char in text.upper() if char.isalpha())
+    if len(text) < n: return float('inf')
+    
+    observed_counts = Counter(text[i:i+n] for i in range(len(text) - n + 1))
+    total_ngrams = sum(observed_counts.values())
+    if total_ngrams == 0: return float('inf')
+    
+    chi_squared_score = 0
+    floor = 0.01
+    for ngram, expected_prob in expected_freqs.items():
+        observed_count = observed_counts.get(ngram, 0)
+        expected_count = expected_prob * total_ngrams
         difference = observed_count - expected_count
         chi_squared_score += (difference * difference) / max(expected_count, floor)
     return chi_squared_score
@@ -283,54 +320,98 @@ def generate_neighbor_key(key: str, alphabet: str) -> str:
     key_list[pos] = random.choice(alphabet)
     return "".join(key_list)
 
-def run_simulated_annealing_attack(ciphertext: str, alphabet_str: str, expected_freqs: Dict, config: Dict):
+def run_simulated_annealing_attack(ciphertext: str, alphabet_str: str, expected_freqs_default: Dict, config: Dict):
     """
     Executes SA attack using configuration passed from main run loop.
+    Includes the new Dynamic Fitness Engine and Top 5 Tracking.
     """
     key_length = config.get('key_length', 5)
     iterations = config.get('iterations', 200000)
-    initial_temp = 1000.0
+    initial_temp = config.get('initial_temp', 1000.0)
+    cooling_rate = config.get('cooling_rate', 0.995)
+    
+    scoring_mode = config.get('scoring_mode', '3') 
+    ngram_size = config.get('ngram_size', 2)
+    target_min_ioc = config.get('min_ioc', 0.060)
+    target_max_ioc = config.get('max_ioc', 0.070)
 
-    print(f"\n{BLUE}--- Simulated Annealing (Key Len: {key_length}) ---{RESET}")
+    freq_path = trigram_freq_path if ngram_size == 3 else bigram_freq_path
+    expected_freqs = load_ngram_frequencies(freq_path)
     
     alphabet, _ = get_alphabet(alphabet_str)
+
+    # --- TOP 5 TRACKER ---
+    top_results = []
+    def add_to_top(k, s, t):
+        if not any(r['key'] == k for r in top_results):
+            top_results.append({'key': k, 'score': s, 'text': t})
+            top_results.sort(key=lambda x: x['score'])
+            if len(top_results) > 5: top_results.pop()
+
+    # --- DYNAMIC FITNESS ENGINE ---
+    def get_ioc_penalty(text_ioc: float) -> float:
+        if target_min_ioc <= text_ioc <= target_max_ioc: return 0.0
+        elif text_ioc < target_min_ioc: return target_min_ioc - text_ioc
+        else: return text_ioc - target_max_ioc
+
+    def evaluate_fitness(text: str) -> float:
+        if scoring_mode == '1': 
+            return calculate_ngram_score(text, expected_freqs, ngram_size)
+            
+        text_ioc = utils.calculate_ioc(text)
+        ioc_penalty = get_ioc_penalty(text_ioc)
+
+        if scoring_mode == '2': 
+            return ioc_penalty * 1000 
+        else: 
+            ngram_score = calculate_ngram_score(text, expected_freqs, ngram_size)
+            return ngram_score * (1.0 + (ioc_penalty * 50))
+
+    print(f"\n{BLUE}--- Simulated Annealing Engine ({'Combined' if scoring_mode == '3' else 'IoC' if scoring_mode == '2' else 'N-Gram'} Scoring) ---{RESET}")
+    if scoring_mode in ['2', '3']:
+        print(f"{GREY}Target IoC Range: {target_min_ioc:.4f} - {target_max_ioc:.4f}{RESET}")
     
-    # Initial State
     current_key = "".join(random.choice(alphabet) for _ in range(key_length))
-    plaintext = decrypt_vigenere(ciphertext, current_key, alphabet_str)
-    current_score = calculate_bigram_score(plaintext, expected_freqs)
+    current_text = decrypt_vigenere(ciphertext, current_key, alphabet_str)
+    current_score = evaluate_fitness(current_text)
 
     best_key, best_score = current_key, current_score
+    add_to_top(current_key, current_score, current_text)
     
     try:
+        temp = initial_temp
         for i in range(iterations):
-            temp = initial_temp * (1.0 - (i + 1) / iterations)
+            temp *= cooling_rate
             if temp <= 0: break
 
             neighbor_key = generate_neighbor_key(current_key, alphabet)
-            plaintext = decrypt_vigenere(ciphertext, neighbor_key, alphabet_str)
-            neighbor_score = calculate_bigram_score(plaintext, expected_freqs)
+            neighbor_text = decrypt_vigenere(ciphertext, neighbor_key, alphabet_str)
+            neighbor_score = evaluate_fitness(neighbor_text)
             
             delta = neighbor_score - current_score
             if delta < 0 or random.random() < math.exp(-delta / temp):
-                current_key, current_score = neighbor_key, neighbor_score
+                current_key, current_score, current_text = neighbor_key, neighbor_score, neighbor_text
+                
+                if len(top_results) < 5 or current_score < top_results[-1]['score']:
+                    add_to_top(current_key, current_score, current_text)
+
                 if current_score < best_score:
                     best_key, best_score = current_key, current_score
-                    # Print update only when improvement found (to avoid console spam in batch)
-                    best_text = decrypt_vigenere(ciphertext, best_key, alphabet_str).upper()
-                    print(f"Score: {best_score:8.2f} | Key: {best_key} | Text: {best_text[:30]}...", end='\r')
+                    display_text = current_text.replace('\n', ' ')[:35]
+                    print(f"Score: {best_score:<8.2f} | Key: {best_key} | Text: {display_text}...", end='\r')
 
     except KeyboardInterrupt:
         print("\nSkipping to next result...")
     
-    print("\n" + "="*60)
-    best_plaintext = decrypt_vigenere(ciphertext, best_key, alphabet_str).upper()
-    print(f"Final Best Key: {YELLOW}{best_key}{RESET}")
-    print(f"Bigram Score: {YELLOW}{best_score:.2f}{RESET}")
-    print(f"IoC: {YELLOW}{utils.calculate_ioc(best_plaintext):.4f}{RESET}")
-    print(f"Text: {best_plaintext}")
+    print("\n" + "="*80)
+    print(f"\n{YELLOW}--- TOP 5 RANKED SOLUTIONS ---{RESET}")
+    for i, res in enumerate(top_results):
+        print(f"Rank #{i+1}: Key: {YELLOW}{res['key']}{RESET} | Score: {YELLOW}{res['score']:.2f}{RESET} | IoC: {YELLOW}{utils.calculate_ioc(res['text']):.4f}{RESET}")
+        print(f"Text: {res['text'].lower()}")
+        print("-" * 60)
     
-    return [{'key': best_key, 'plaintext': best_plaintext, 'bigram_score': best_score}]
+    # Returns formatted dicts so `save_results_to_file` in DummyUtils natively supports it
+    return [{'key': res['key'], 'plaintext': res['text'], 'bigram_score': res['score']} for res in top_results]
 
 def run_direct_decrypt(ciphertext: str, alphabet_str: str, config: Dict):
     key = config.get('key', '')
@@ -434,8 +515,32 @@ def run():
             try:
                 kl = input("Enter exact key length: ")
                 config['key_length'] = int(kl)
+                
+                print(f"\n{GREY}Select Ranking/Optimization Metric:{RESET}")
+                print(f"  ({YELLOW}1{RESET}) Pure N-Grams")
+                print(f"  ({YELLOW}2{RESET}) Pure English IoC Range (~0.060-0.070) [Best for Outer-Layer Double Ciphers]")
+                print(f"  ({YELLOW}3{RESET}) Combined (N-Grams weighted by IoC Range) [Recommended]")
+                config['scoring_mode'] = input(">> ").strip() or '3'
+                
+                if config['scoring_mode'] in ['1', '3']:
+                    ng = input(f"Use Bigrams(2) or Trigrams(3)? (default {YELLOW}2{RESET}): ")
+                    config['ngram_size'] = 3 if ng == '3' else 2
+                    
+                if config['scoring_mode'] in ['2', '3']:
+                    min_i = input(f"Enter target MIN IoC (default {YELLOW}0.060{RESET}): ")
+                    config['min_ioc'] = float(min_i) if min_i else 0.060
+                    max_i = input(f"Enter target MAX IoC (default {YELLOW}0.070{RESET}): ")
+                    config['max_ioc'] = float(max_i) if max_i else 0.070
+
                 iters = input(f"Enter iterations (default: {YELLOW}200,000{RESET}): ")
                 config['iterations'] = int(iters) if iters else 200000
+
+                temp_in = input(f"Enter initial temperature (default {YELLOW}1000.0{RESET}): ")
+                config['initial_temp'] = float(temp_in) if temp_in else 1000.0
+
+                cool_in = input(f"Enter cooling rate (default {YELLOW}0.995{RESET}): ")
+                config['cooling_rate'] = float(cool_in) if cool_in else 0.995
+                
             except ValueError:
                 print(f"{RED}Invalid integer input.{RESET}")
                 continue
@@ -487,4 +592,8 @@ if __name__ == "__main__":
         print(f"{GREY}Creating dummy bigram frequency file...{RESET}")
         with open(bigram_freq_path, 'w') as f:
             f.write("TH 1.52\nHE 1.28\n")
+    if not os.path.exists(trigram_freq_path):
+        print(f"{GREY}Creating dummy trigram frequency file...{RESET}")
+        with open(trigram_freq_path, 'w') as f:
+            f.write("THE 1.81\nAND 0.73\nING 0.72\nENT 0.42\nION 0.42\n")
     run()

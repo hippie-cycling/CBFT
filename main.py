@@ -11,6 +11,10 @@ sys.path.append(os.path.join(os.path.dirname(__file__), 'scripts'))
 # Define a mapping from user-friendly names to module file names
 MODULE_MAP = {
     'vigenere': 'vigenere',
+    'beaufort': 'beaufort',                        
+    'porta': 'porta',                              
+    'four_square': 'four_square',                  
+    'running_key': 'running_key',                  
     'gromark': 'Gromark_transposition',
     'gronsfeld': 'Gronsfeld',
     'autoclave': 'autoclave',
@@ -29,7 +33,7 @@ MODULE_MAP = {
     'matrix_generator': 'Matrix Generator',
     'ioc': 'ioc',
     'freq_analysis': 'freq_analysis',
-    'kasiski': 'kasiski',                             
+    'kasiski': 'kasiski',                              
     'friedman_test': 'friedman_test',
     'pattern_isomorphism': 'pattern_isomorphism',
     'crib_drag': 'crib_drag',
@@ -37,7 +41,7 @@ MODULE_MAP = {
     'hill_climbing_transposition': 'hill_climbing_transposition',
     'vigenere_auto_solver': 'vigenere_auto_solver',
     'text_formatter': 'text_formatter',
-    'keyword_alphabet': 'keyword_alphabet'                 # NEW
+    'keyword_alphabet': 'keyword_alphabet'             
 }
 
 # Try to import the cipher and tool modules
@@ -77,7 +81,7 @@ def fancy_box(text, color=Style.YELLOW, padding=1):
         print(f"{color}│{' ' * left_padding}{Style.RESET}{line}{color}{' ' * right_padding}│{Style.RESET}")
     print(f"{color}└{'─' * width}┘{Style.RESET}")
 
-def retro_effect(duration=1.5):
+def retro_effect(duration=1.0):
     width = terminal_width()
     chars = "█▓▒░ ░▒▓█"
     end_time = time.time() + duration
@@ -89,17 +93,19 @@ def retro_effect(duration=1.5):
 
 def display_logo():
     logo = f"""
-    {Style.GREEN}   
-  ██████╗██████╗ ███████╗████████╗
- ██╔════╝██╔══██╗██╔════╝╚══██╔══╝
- ██║     ██████╔╝█████╗      ██║  
- ██║     ██╔══██╗██╔══╝      ██║  
- ╚██████╗██████╔╝██║         ██║  
-  ╚═════╝╚═════╝ ╚═╝         ╚═╝
+    {Style.RED}
+  /$$$$$$                   /$$$$$$                  /$$$$$$$$
+ /$$__  $$                 /$$__  $$                |__  $$__/
+| $$  \__/                | $$  \__/                   | $$   
+| $$                      | $$                         | $$   
+| $$                      | $$                         | $$   
+| $$    $$                | $$    $$                   | $$   
+|  $$$$$$/       /$$      |  $$$$$$/       /$$         | $$   
+ \______/       |__/       \______/       |__/         |__/                                                                                                                              
     {Style.RESET}
     """
     print(logo)
-    print_centered(f"{Style.BOLD}{Style.REVERSE} CIPHER BRUTE FORCE TOOLKIT {Style.RESET}", Style.WHITE)
+    print_centered(f"{Style.BOLD}{Style.REVERSE} CIPHER CRACKER TOOLKIT {Style.RESET}", Style.RED)
     print_divider()
     print_centered(f"github.com/hippie-cycling", Style.GRAY)
     print_centered(f"Session started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", Style.BLUE)
@@ -121,6 +127,10 @@ def display_menu():
         (10, "Affine Cipher", Style.GREEN, 'affine'),
         (11, "Polybius Square", Style.GREEN, 'polybius'),
         (12, "Bifid Cipher", Style.GREEN, 'bifid'),
+        (13, "Beaufort Cipher", Style.GREEN, 'beaufort'),
+        (14, "Porta Cipher", Style.GREEN, 'porta'),
+        (15, "Four-Square Cipher", Style.GREEN, 'four_square'),
+        (16, "Running Key Cipher", Style.GREEN, 'running_key'),
         (-2, "TRANSPOSITION CIPHER OPTIONS", Style.CYAN, None),
         (20, "Columnar Transposition Cipher", Style.GREEN, 'columnar_transposition'),
         (21, "Scytale Cipher", Style.GREEN, 'scytale'),
@@ -139,7 +149,7 @@ def display_menu():
         (41, "Frequency Analysis", Style.GRAY, 'freq_analysis'),
         (42, "Matrix Generator", Style.GRAY, 'matrix_generator'),
         (43, "Text Formatter", Style.GRAY, 'text_formatter'),
-        (44, "Keyword Alphabet Generator", Style.GRAY, 'keyword_alphabet'), # NEW
+        (44, "Keyword Alphabet Generator", Style.GRAY, 'keyword_alphabet'), 
         (-5, "SYSTEM", Style.CYAN, None),
         ('A', "About", Style.WHITE, 'about'),
         ('E', "Exit", Style.RED, 'exit')
@@ -192,7 +202,7 @@ def main():
                 input("\nPress Enter to return...")
             elif choice == 'A':
                 clear_screen()
-                print("Cipher Brute Force Toolkit. A comprehensive cryptanalysis and heuristic decryption suite.")
+                print("Cipher Cracker Toolkit. A comprehensive powerful cryptanalysis and heuristic decryption suite.")
                 input("\nPress Enter to return...")
             elif choice == 'E':
                 clear_screen()
@@ -202,7 +212,8 @@ def main():
                 mapping = {
                     '1': 'vigenere', '2': 'gromark', '3': 'gronsfeld', '4': 'autoclave', '5': 'hill',
                     '6': 'xor', '7': 'mod_add_sub', '8': 'caesar', '9': 'playfair', '10': 'affine',
-                    '11': 'polybius', '12': 'bifid',
+                    '11': 'polybius', '12': 'bifid', '13': 'beaufort', '14': 'porta', 
+                    '15': 'four_square', '16': 'running_key',
                     '20': 'columnar_transposition', '21': 'scytale', '22': 'rail_fence', '23': 'permutation_solver',
                     '30': 'vigenere_auto_solver', '31': 'simulated_annealing', '32': 'hill_climbing_transposition',
                     '33': 'pattern_isomorphism', '34': 'crib_drag', '35': 'kasiski', '36': 'friedman_test',
